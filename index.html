@@ -1064,7 +1064,7 @@
                 📊 Meetovo
             </div>
             <div class="sidebar-nav">
-                <div class="nav-item active" data-tab="overview">Uebersicht</div>
+                <div class="nav-item active" data-tab="overview">Übersicht</div>
                 <div class="nav-item" data-tab="today">Heute</div>
                 <div class="nav-item" data-tab="yesterday">Gestern</div>
                 <div class="nav-item" data-tab="week">Woche</div>
@@ -1080,7 +1080,7 @@
         <div class="main-content">
             <div class="header">
                 <div class="header-left">
-                    <div class="header-title" id="pageTitle">Uebersicht</div>
+                    <div class="header-title" id="pageTitle">Übersicht</div>
                     <div class="sync-indicator">
                         <div class="sync-dot" id="syncDot"></div>
                         <span id="lastSync">Synchronisierung...</span>
@@ -1114,7 +1114,7 @@
         let currentClient = '';
 
         const TABS = [
-            { id: 'overview', label: 'Uebersicht' },
+            { id: 'overview', label: 'Übersicht' },
             { id: 'today', label: 'Heute' },
             { id: 'yesterday', label: 'Gestern' },
             { id: 'week', label: 'Woche' },
@@ -1124,6 +1124,44 @@
             { id: 'costs', label: 'Kosten' },
             { id: 'instructions', label: 'Anleitung' }
         ];
+
+        function fixUmlauts(data) {
+            const replacements = {
+                'Ã¤': 'ä', 'Ã¶': 'ö', 'Ã¼': 'ü', 'Ã„': 'Ä', 'Ã–': 'Ö', 'Ãœ': 'Ü', 'ÃŸ': 'ß',
+                'ä': 'ä', 'ö': 'ö', 'ü': 'ü', 'Ä': 'Ä', 'Ö': 'Ö', 'Ü': 'Ü',
+                'Ã€': 'À', 'Ã©': 'é', 'Ã¨': 'è',
+                '\u00c3\u00a4': 'ä', '\u00c3\u00b6': 'ö', '\u00c3\u00bc': 'ü',
+                '\u00c3\u0084': 'Ä', '\u00c3\u0096': 'Ö', '\u00c3\u009c': 'Ü'
+            };
+
+            function fixStr(str) {
+                if (typeof str !== 'string') return str;
+                let result = str;
+                Object.entries(replacements).forEach(([bad, good]) => {
+                    result = result.split(bad).join(good);
+                });
+                try {
+                    const decoded = decodeURIComponent(escape(result));
+                    if (decoded !== result && /[äöüÄÖÜß]/.test(decoded)) result = decoded;
+                } catch(e) {}
+                return result;
+            }
+
+            function fixObj(obj) {
+                if (typeof obj === 'string') return fixStr(obj);
+                if (Array.isArray(obj)) return obj.map(fixObj);
+                if (obj && typeof obj === 'object') {
+                    const fixed = {};
+                    Object.entries(obj).forEach(([key, value]) => {
+                        fixed[fixStr(key)] = fixObj(value);
+                    });
+                    return fixed;
+                }
+                return obj;
+            }
+
+            return fixObj(data);
+        }
 
         function init() {
             const params = new URLSearchParams(window.location.search);
@@ -1213,7 +1251,7 @@
             fetch(`${API_URL}?action=dashboard`)
                 .then(r => r.json())
                 .then(data => {
-                    dashboardData = data;
+                    dashboardData = fixUmlauts(data);
                     updateClientFilter();
                     renderTab(currentTab);
                     updateLastSync();
@@ -1290,12 +1328,13 @@
             const kpis = document.getElementById('overviewKpis');
             const data = dashboardData;
 
-            const todayTotal = getFilteredValue(data.today);
-            const yesterdayTotal = getFilteredValue(data.yesterday);
-            const weekTotal = getFilteredValue(data.thisWeek);
-            const monthTotal = getFilteredValue(data.thisMonth);
+            const todayTotal = getFilteredValue(data.today) || data.todayTotal || 0;
+            const yesterdayTotal = getFilteredValue(data.yesterday) || data.yesterdayTotal || 0;
+            const weekTotal = getFilteredValue(data.thisWeek) || data.weekTotal || 0;
+            const monthTotal = getFilteredValue(data.thisMonth) || data.monthTotal || 0;
 
-            const avgPerDay = monthTotal > 0 ? (monthTotal / 31).toFixed(1) : 0;
+            const dayOfMonth = new Date().getDate();
+            const avgPerDay = monthTotal > 0 ? (monthTotal / dayOfMonth).toFixed(1) : (weekTotal > 0 ? (weekTotal / Math.min(dayOfMonth, 7)).toFixed(1) : 0);
             const activeCampaigns = Object.keys(campaignStatuses).filter(k => campaignStatuses[k] === 'active').length || data.clients.length;
             const alertsCount = getAlertsCount();
             const bestCampaign = getBestCampaign();
@@ -1434,7 +1473,14 @@
             const table = document.getElementById('healthTable');
             const data = dashboardData;
 
-            const healthRows = data.clients.map(funnel => {
+            const sortedClients = [...data.clients].sort((a, b) => {
+                const custA = (data.customerMap[a] || a).toLowerCase();
+                const custB = (data.customerMap[b] || b).toLowerCase();
+                if (custA < custB) return -1;
+                if (custA > custB) return 1;
+                return a.localeCompare(b);
+            });
+            const healthRows = sortedClients.map(funnel => {
                 const customer = data.customerMap[funnel] || funnel;
                 const monthData = getFilteredValue(data.thisMonth, funnel);
                 const weekData = getFilteredValue(data.thisWeek, funnel);
@@ -1672,6 +1718,7 @@
             const activeCampaigns = dashboardData.clients.filter(c => !campaignStatuses[c] || campaignStatuses[c] === 'active').length;
             const pausedCampaigns = dashboardData.clients.filter(c => campaignStatuses[c] === 'paused').length;
             const filledCampaigns = dashboardData.clients.filter(c => campaignStatuses[c] === 'filled').length;
+            const stoppedCampaigns = dashboardData.clients.filter(c => campaignStatuses[c] === 'stopped').length;
 
             let html = `
                 <div class="campaign-counter">
@@ -1687,6 +1734,10 @@
                         <div class="counter-label">Besetzt</div>
                         <div class="counter-value">${filledCampaigns}</div>
                     </div>
+                    <div class="counter-item">
+                        <div class="counter-label">Eingestellt</div>
+                        <div class="counter-value">${stoppedCampaigns}</div>
+                    </div>
                 </div>
 
                 <div class="filter-controls">
@@ -1694,6 +1745,7 @@
                     <button class="filter-btn" onclick="filterCampaigns('active')">Aktiv</button>
                     <button class="filter-btn" onclick="filterCampaigns('paused')">Pausiert</button>
                     <button class="filter-btn" onclick="filterCampaigns('filled')">Besetzt</button>
+                    <button class="filter-btn" onclick="filterCampaigns('stopped')">Eingestellt</button>
                 </div>
 
                 <div class="table-container">
@@ -1723,7 +1775,14 @@
             document.querySelector(`button[onclick="filterCampaigns('${filter}')"]`).classList.add('active');
 
             const body = document.getElementById('campaignsBody');
-            const rows = dashboardData.clients.map(funnel => {
+            const sortedClients = [...dashboardData.clients].sort((a, b) => {
+                const custA = (dashboardData.customerMap[a] || a).toLowerCase();
+                const custB = (dashboardData.customerMap[b] || b).toLowerCase();
+                if (custA < custB) return -1;
+                if (custA > custB) return 1;
+                return a.localeCompare(b);
+            });
+            const rows = sortedClients.map(funnel => {
                 const customer = dashboardData.customerMap[funnel] || funnel;
                 const status = campaignStatuses[funnel] || 'active';
                 const monthData = getFilteredValue(dashboardData.thisMonth, funnel);
@@ -1732,12 +1791,12 @@
                 if (filter !== 'all' && status !== filter) return null;
 
                 return `
-                    <tr class="${status === 'paused' ? 'paused' : status === 'filled' ? 'filled' : ''}">
+                    <tr class="${status === 'paused' ? 'paused' : status === 'filled' ? 'filled' : status === 'stopped' ? 'filled' : ''}">
                         <td>${customer}</td>
                         <td style="font-size: 12px; color: var(--text-muted);">${funnel}</td>
                         <td>
                             <span class="status-badge status-${status}">
-                                ${status === 'active' ? 'Aktiv' : status === 'paused' ? 'Pausiert' : 'Besetzt'}
+                                ${status === 'active' ? 'Aktiv' : status === 'paused' ? 'Pausiert' : status === 'filled' ? 'Besetzt' : status === 'stopped' ? 'Eingestellt' : 'Aktiv'}
                             </span>
                         </td>
                         <td>${weekData}</td>
@@ -1747,6 +1806,7 @@
                                 ${status !== 'active' ? `<button class="btn btn-small btn-success" onclick="setCampaignStatus('${funnel}', 'active')">Aktiv</button>` : ''}
                                 ${status !== 'paused' ? `<button class="btn btn-small btn-warning" onclick="setCampaignStatus('${funnel}', 'paused')">Pausieren</button>` : ''}
                                 ${status !== 'filled' ? `<button class="btn btn-small btn-danger" onclick="setCampaignStatus('${funnel}', 'filled')">Besetzt</button>` : ''}
+                                ${status !== 'stopped' ? `<button class="btn btn-small" style="background: var(--text-muted); color: #fff;" onclick="setCampaignStatus('${funnel}', 'stopped')">Eingestellt</button>` : ''}
                             </div>
                         </td>
                     </tr>
@@ -1805,23 +1865,34 @@
             renderCostsTab(document.getElementById('contentArea'));
         }
 
-        function renderCostGrid(budgetPerDay) {
+        function renderCostGrid(defaultBudget) {
             const costGrid = document.getElementById('costGrid');
-            const monthlyData = dashboardData.monthlyBreakdown[dashboardData.monthlyBreakdown.length - 1]?.data || {};
+            const monthlyData = dashboardData.monthlyBreakdown?.[dashboardData.monthlyBreakdown.length - 1]?.data || {};
 
-            const costs = dashboardData.clients.map(funnel => {
-                const monthlyApplicants = monthlyData[funnel] || getFilteredValue(dashboardData.thisMonth, funnel);
+            const sortedClients = [...dashboardData.clients].sort((a, b) => {
+                const custA = (dashboardData.customerMap[a] || a).toLowerCase();
+                const custB = (dashboardData.customerMap[b] || b).toLowerCase();
+                if (custA < custB) return -1;
+                if (custA > custB) return 1;
+                return a.localeCompare(b);
+            });
+
+            const costs = sortedClients.map(funnel => {
+                const individualBudget = costSettings.individualBudgets?.[funnel];
+                const budgetPerDay = individualBudget || defaultBudget;
+                const monthlyApplicants = monthlyData[funnel] || getFilteredValue(dashboardData.thisMonth, funnel) || getFilteredValue(dashboardData.thisWeek, funnel);
                 const estimatedSpend = budgetPerDay * 30;
-                const costPerApplicant = monthlyApplicants > 0 ? (estimatedSpend / monthlyApplicants).toFixed(2) : 'N/A';
+                const costPerApplicant = monthlyApplicants > 0 ? (estimatedSpend / monthlyApplicants) : null;
+                const feedback = costSettings.feedback?.[funnel] || '';
 
                 let rating = 'good';
-                if (costPerApplicant !== 'N/A') {
+                if (costPerApplicant !== null) {
                     if (costPerApplicant > 40) rating = 'bad';
                     else if (costPerApplicant > 25) rating = 'medium';
                 }
 
-                return { funnel, customer: dashboardData.customerMap[funnel] || funnel, estimatedSpend, costPerApplicant, monthlyApplicants, rating };
-            }).sort((a, b) => parseFloat(a.costPerApplicant || 999) - parseFloat(b.costPerApplicant || 999));
+                return { funnel, customer: dashboardData.customerMap[funnel] || funnel, budgetPerDay, estimatedSpend, costPerApplicant, monthlyApplicants, rating, feedback, isCustomBudget: !!individualBudget };
+            }).sort((a, b) => (a.costPerApplicant || 999) - (b.costPerApplicant || 999));
 
             costGrid.innerHTML = costs.map(cost => `
                 <div class="cost-card">
@@ -1839,15 +1910,47 @@
                         <span class="cost-value">${cost.monthlyApplicants}</span>
                     </div>
                     <div class="cost-row">
-                        <span class="cost-label">Geschaetztes Budget</span>
+                        <span class="cost-label">Tagesbudget</span>
+                        <span class="cost-value">
+                            <input type="number" class="input" style="width: 70px; padding: 3px 6px; font-size: 12px; display: inline-block;" value="${cost.budgetPerDay}" min="1" step="1" onchange="saveIndividualBudget('${cost.funnel}', this.value)">
+                            Euro ${cost.isCustomBudget ? '<span style="color: var(--color-primary); font-size: 10px;">(individuell)</span>' : ''}
+                        </span>
+                    </div>
+                    <div class="cost-row">
+                        <span class="cost-label">Geschätztes Budget (30 Tage)</span>
                         <span class="cost-value">${cost.estimatedSpend.toLocaleString('de-DE')} Euro</span>
                     </div>
                     <div class="cost-row">
                         <span class="cost-label">Kosten pro Bewerbung</span>
-                        <span class="cost-value">${typeof cost.costPerApplicant === 'number' ? cost.costPerApplicant.toFixed(2) + ' Euro' : cost.costPerApplicant}</span>
+                        <span class="cost-value">${cost.costPerApplicant !== null ? cost.costPerApplicant.toFixed(2) + ' Euro' : 'N/A'}</span>
+                    </div>
+                    <div class="cost-row" style="flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                        <span class="cost-label">Feedback / Notizen</span>
+                        <textarea class="input" style="width: 100%; min-height: 50px; padding: 6px 8px; font-size: 12px; resize: vertical;" placeholder="z.B. Kunde zufrieden, Qualität der Bewerber gut..." onchange="saveFeedback('${cost.funnel}', this.value)">${cost.feedback}</textarea>
                     </div>
                 </div>
             `).join('');
+        }
+
+        function saveIndividualBudget(funnel, value) {
+            if (!costSettings.individualBudgets) costSettings.individualBudgets = {};
+            const budget = parseFloat(value);
+            if (budget && budget > 0) {
+                costSettings.individualBudgets[funnel] = budget;
+            } else {
+                delete costSettings.individualBudgets[funnel];
+            }
+            saveLocalStorage();
+        }
+
+        function saveFeedback(funnel, text) {
+            if (!costSettings.feedback) costSettings.feedback = {};
+            if (text.trim()) {
+                costSettings.feedback[funnel] = text.trim();
+            } else {
+                delete costSettings.feedback[funnel];
+            }
+            saveLocalStorage();
         }
 
         function calculateAvgCostPerApplicant() {
@@ -1872,7 +1975,7 @@
                     <div class="instruction-section">
                         <div class="instruction-title">Benutzerdefinierte API URL</div>
                         <div class="instruction-text">
-                            Sie koennen eine benutzerdefinierte Google Apps Script URL ueber den URL Parameter "api" uebergeben:
+                            Sie können eine benutzerdefinierte Google Apps Script URL über den URL Parameter "api" übergeben:
                         </div>
                         <div class="code-block">${webhookUrl}</div>
                         <button class="copy-btn" onclick="copyToClipboard('${webhookUrl}')">URL kopieren</button>
@@ -1881,19 +1984,20 @@
                     <div class="instruction-section">
                         <div class="instruction-title">Kampagnen Verwaltung</div>
                         <div class="instruction-text">
-                            Im Reiter "Kampagnen" koennen Sie den Status jeder Kampagne verwalten:
+                            Im Reiter "Kampagnen" können Sie den Status jeder Kampagne verwalten:
                         </div>
                         <ul style="list-style: none; margin: 10px 0; color: var(--text-secondary); font-size: 14px;">
-                            <li style="margin: 8px 0;"><strong>Aktiv:</strong> Kampagne ist im Einsatz und wird ueberwacht</li>
-                            <li style="margin: 8px 0;"><strong>Pausiert:</strong> Kampagne ist temporaer deaktiviert, loest keine Alarme aus</li>
-                            <li style="margin: 8px 0;"><strong>Besetzt:</strong> Position ist besetzt, wird nicht ueberwacht</li>
+                            <li style="margin: 8px 0;"><strong>Aktiv:</strong> Kampagne ist im Einsatz und wird überwacht</li>
+                            <li style="margin: 8px 0;"><strong>Pausiert:</strong> Kampagne ist temporär deaktiviert, löst keine Alarme aus</li>
+                            <li style="margin: 8px 0;"><strong>Besetzt:</strong> Position ist besetzt, wird nicht überwacht</li>
+                            <li style="margin: 8px 0;"><strong>Eingestellt:</strong> Kampagne wurde beendet ohne Besetzung</li>
                         </ul>
                     </div>
 
                     <div class="instruction-section">
                         <div class="instruction-title">Kampagnen Alarm System</div>
                         <div class="instruction-text">
-                            Das System warnt Sie automatisch, wenn eine Kampagne keine Bewerbungen erhaelt:
+                            Das System warnt Sie automatisch, wenn eine Kampagne keine Bewerbungen erhält:
                         </div>
                         <ul style="list-style: none; margin: 10px 0; color: var(--text-secondary); font-size: 14px;">
                             <li style="margin: 8px 0;"><span style="color: var(--color-success);">Gruen:</span> Bewerbung innerhalb der letzten 3 Tage</li>
@@ -1908,7 +2012,7 @@
                             Der Reiter "Kosten" zeigt die geschaetzten Kosten pro Kampagne basierend auf Ihrem Budget:
                         </div>
                         <ul style="list-style: none; margin: 10px 0; color: var(--text-secondary); font-size: 14px;">
-                            <li style="margin: 8px 0;"><strong>Geschaetztes Budget:</strong> Tagesbudget x 30 Tage</li>
+                            <li style="margin: 8px 0;"><strong>Geschätztes Budget:</strong> Tagesbudget x 30 Tage</li>
                             <li style="margin: 8px 0;"><strong>Kosten pro Bewerbung:</strong> Gesamtbudget geteilt durch Bewerber im Monat</li>
                             <li style="margin: 8px 0;"><strong>Rating:</strong> Basierend auf Kosten pro Bewerbung</li>
                         </ul>
@@ -1917,7 +2021,7 @@
                     <div class="instruction-section">
                         <div class="instruction-title">Design und Voreinstellungen</div>
                         <div class="instruction-text">
-                            Der Nachtmodus ist standardmaessig aktiviert. Sie koennen ihn durch Klicken auf "Tagesmodus" in der Seitenleiste aendern.
+                            Der Nachtmodus ist standardmäßig aktiviert. Sie können ihn durch Klicken auf "Tagesmodus" in der Seitenleiste ändern.
                             Alle Einstellungen werden automatisch gespeichert.
                         </div>
                     </div>
@@ -1948,7 +2052,13 @@
             if (!data) return 0;
             if (funnel) return data[funnel] || 0;
             if (!currentClient) return Object.values(data).reduce((a, b) => a + b, 0);
-            return data[currentClient] || 0;
+            let total = 0;
+            const customerMap = dashboardData.customerMap || {};
+            Object.entries(data).forEach(([key, count]) => {
+                const customer = customerMap[key] || key;
+                if (customer === currentClient || key === currentClient) total += count;
+            });
+            return total;
         }
 
         function getAlertsCount() {
@@ -1959,8 +2069,10 @@
             let best = null;
             let maxCount = 0;
             const monthData = dashboardData.thisMonth || {};
+            const weekData = dashboardData.thisWeek || {};
+            const checkData = Object.keys(monthData).length > 0 ? monthData : weekData;
 
-            Object.entries(monthData).forEach(([funnel, count]) => {
+            Object.entries(checkData).forEach(([funnel, count]) => {
                 if (count > maxCount) {
                     maxCount = count;
                     best = dashboardData.customerMap[funnel] || funnel;
