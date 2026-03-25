@@ -1337,14 +1337,23 @@
             renderRecentApplicants(10);
         }
 
+        function getMonthData() {
+            const data = dashboardData.thisMonth || {};
+            if (Object.keys(data).length === 0 && dashboardData.monthlyBreakdown && dashboardData.monthlyBreakdown.length > 0) {
+                return dashboardData.monthlyBreakdown[dashboardData.monthlyBreakdown.length - 1].data || {};
+            }
+            return data;
+        }
+
         function renderOverviewKpis() {
             const kpis = document.getElementById('overviewKpis');
             const data = dashboardData;
+            const monthData = getMonthData();
 
             const todayTotal = currentClient ? getFilteredValue(data.today) : (getFilteredValue(data.today) || data.todayTotal || 0);
             const yesterdayTotal = currentClient ? getFilteredValue(data.yesterday) : (getFilteredValue(data.yesterday) || data.yesterdayTotal || 0);
             const weekTotal = currentClient ? getFilteredValue(data.thisWeek) : (getFilteredValue(data.thisWeek) || data.weekTotal || 0);
-            const monthTotal = currentClient ? getFilteredValue(data.thisMonth) : (getFilteredValue(data.thisMonth) || data.monthTotal || 0);
+            const monthTotal = currentClient ? getFilteredValue(monthData) : (getFilteredValue(monthData) || data.monthTotal || 0);
 
             const dayOfMonth = new Date().getDate();
             const avgPerDay = monthTotal > 0 ? (monthTotal / dayOfMonth).toFixed(1) : (weekTotal > 0 ? (weekTotal / Math.min(dayOfMonth, 7)).toFixed(1) : 0);
@@ -1647,7 +1656,7 @@
         }
 
         function renderPeriodTab(container, periodKey, label) {
-            const data = dashboardData[periodKey] || {};
+            const data = periodKey === 'thisMonth' ? getMonthData() : (dashboardData[periodKey] || {});
             const totalKey = periodKey === 'thisWeek' ? 'weekTotal' : 'monthTotal';
             const total = currentClient ? getFilteredValue(data) : (getFilteredValue(data) || dashboardData[totalKey] || 0);
 
@@ -2102,7 +2111,7 @@
 
         function getBestCampaigns(limit) {
             limit = limit || 5;
-            const monthData = dashboardData.thisMonth || {};
+            const monthData = getMonthData();
             const weekData = dashboardData.thisWeek || {};
             const checkData = Object.keys(monthData).length > 0 ? monthData : weekData;
             const customerMap = dashboardData.customerMap || {};
