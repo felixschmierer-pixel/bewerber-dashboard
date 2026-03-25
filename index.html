@@ -1134,6 +1134,13 @@
                 '\u00c3\u0084': 'Ä', '\u00c3\u0096': 'Ö', '\u00c3\u009c': 'Ü'
             };
 
+            const manualFixes = {
+                'Sanitür': 'Sanitär',
+                'sanitür': 'sanitär',
+                'SaniTür': 'Sanitär',
+                'SANITÜR': 'SANITÄR'
+            };
+
             function fixStr(str) {
                 if (typeof str !== 'string') return str;
                 let result = str;
@@ -1144,6 +1151,9 @@
                     const decoded = decodeURIComponent(escape(result));
                     if (decoded !== result && /[äöüÄÖÜß]/.test(decoded)) result = decoded;
                 } catch(e) {}
+                Object.entries(manualFixes).forEach(([wrong, correct]) => {
+                    result = result.split(wrong).join(correct);
+                });
                 return result;
             }
 
@@ -1272,25 +1282,28 @@
 
         function updateClientFilter() {
             const select = document.getElementById('clientFilter');
-            const clients = [...new Set(dashboardData.clients || [])];
-            const current = select.value;
+            const current = currentClient;
 
             while (select.options.length > 1) {
                 select.remove(1);
             }
 
-            clients.forEach(client => {
+            const customerNames = new Set();
+            (dashboardData.clients || []).forEach(funnel => {
+                customerNames.add(dashboardData.customerMap[funnel] || funnel);
+            });
+            Array.from(customerNames).sort().forEach(name => {
                 const opt = document.createElement('option');
-                opt.value = client;
-                opt.textContent = dashboardData.customerMap[client] || client;
+                opt.value = name;
+                opt.textContent = name;
                 select.appendChild(opt);
             });
 
             select.value = current;
-            select.addEventListener('change', (e) => {
+            select.onchange = (e) => {
                 currentClient = e.target.value;
                 renderTab(currentTab);
-            });
+            };
         }
 
         function renderTab(tabId) {
@@ -1328,16 +1341,16 @@
             const kpis = document.getElementById('overviewKpis');
             const data = dashboardData;
 
-            const todayTotal = getFilteredValue(data.today) || data.todayTotal || 0;
-            const yesterdayTotal = getFilteredValue(data.yesterday) || data.yesterdayTotal || 0;
-            const weekTotal = getFilteredValue(data.thisWeek) || data.weekTotal || 0;
-            const monthTotal = getFilteredValue(data.thisMonth) || data.monthTotal || 0;
+            const todayTotal = currentClient ? getFilteredValue(data.today) : (getFilteredValue(data.today) || data.todayTotal || 0);
+            const yesterdayTotal = currentClient ? getFilteredValue(data.yesterday) : (getFilteredValue(data.yesterday) || data.yesterdayTotal || 0);
+            const weekTotal = currentClient ? getFilteredValue(data.thisWeek) : (getFilteredValue(data.thisWeek) || data.weekTotal || 0);
+            const monthTotal = currentClient ? getFilteredValue(data.thisMonth) : (getFilteredValue(data.thisMonth) || data.monthTotal || 0);
 
             const dayOfMonth = new Date().getDate();
             const avgPerDay = monthTotal > 0 ? (monthTotal / dayOfMonth).toFixed(1) : (weekTotal > 0 ? (weekTotal / Math.min(dayOfMonth, 7)).toFixed(1) : 0);
             const activeCampaigns = Object.keys(campaignStatuses).filter(k => campaignStatuses[k] === 'active').length || data.clients.length;
             const alertsCount = getAlertsCount();
-            const bestCampaign = getBestCampaign();
+            const bestCampaigns = getBestCampaigns(5);
 
             const change24h = yesterdayTotal > 0 ? (((todayTotal - yesterdayTotal) / yesterdayTotal) * 100).toFixed(0) : 0;
             const changeWeek = weekTotal > 0 ? (((todayTotal - (weekTotal / 7)) / (weekTotal / 7)) * 100).toFixed(0) : 0;
@@ -1349,9 +1362,23 @@
                 { label: 'Monat', value: monthTotal, change: 0, changeType: '' },
                 { label: 'Durchschnitt pro Tag', value: avgPerDay, change: 0, changeType: '' },
                 { label: 'Aktive Kampagnen', value: activeCampaigns, change: 0, changeType: '' },
-                { label: 'Alarme', value: alertsCount, change: 0, changeType: '' },
-                { label: 'Beste Kampagne', value: bestCampaign || '.', change: 0, changeType: '' }
+                { label: 'Alarme', value: alertsCount, change: 0, changeType: '' }
             ];
+
+            let rankingHtml = '';
+            if (bestCampaigns.length > 0) {
+                rankingHtml = '<div class="kpi-card" style="grid-column: span 2;">' +
+                    '<div class="kpi-label">Beste Kampagnen (Monat)</div>' +
+                    '<div style="margin-top: 8px;">' +
+                    bestCampaigns.map(c =>
+                        `<div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px;">` +
+                        `<span style="color: var(--text-muted);">${c.rank}.</span> ` +
+                        `<span style="flex: 1; margin-left: 6px; font-weight: ${c.rank <= 3 ? '600' : '400'};">${c.name}</span>` +
+                        `<span style="background: var(--accent); color: #fff; border-radius: 10px; padding: 1px 8px; font-size: 12px; font-weight: 600;">${c.count}</span>` +
+                        `</div>`
+                    ).join('') +
+                    '</div></div>';
+            }
 
             kpis.innerHTML = kpiData.map(kpi => `
                 <div class="kpi-card">
@@ -1366,7 +1393,7 @@
                         </div>
                     ` : ''}
                 </div>
-            `).join('');
+            `).join('') + rankingHtml;
         }
 
         function renderAlertPanel() {
@@ -1539,7 +1566,14 @@
 
         function renderRecentApplicants(limit) {
             const container = document.getElementById('recentApplicants');
-            const filtered = dashboardData.recentApplicants.slice(0, limit);
+            let applicants = dashboardData.recentApplicants || [];
+            if (currentClient) {
+                applicants = applicants.filter(app => {
+                    const customer = dashboardData.customerMap[app.client] || app.client;
+                    return customer === currentClient;
+                });
+            }
+            const filtered = applicants.slice(0, limit);
 
             if (filtered.length === 0) {
                 container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👤</div>Keine Bewerber</div>';
@@ -1563,7 +1597,7 @@
 
         function renderDayTab(container, dayKey) {
             const data = dashboardData[dayKey] || {};
-            const total = getFilteredValue(dashboardData[dayKey + 'Total']);
+            const total = currentClient ? getFilteredValue(data) : (getFilteredValue(data) || dashboardData[dayKey + 'Total'] || 0);
 
             let html = `
                 <div class="kpi-grid">
@@ -1588,7 +1622,7 @@
             const rows = Object.entries(data)
                 .filter(([key, val]) => {
                     if (!currentClient) return true;
-                    return key === currentClient;
+                    return (dashboardData.customerMap[key] || key) === currentClient;
                 })
                 .sort((a, b) => b[1] - a[1]);
 
@@ -1614,7 +1648,8 @@
 
         function renderPeriodTab(container, periodKey, label) {
             const data = dashboardData[periodKey] || {};
-            const total = getFilteredValue(dashboardData[periodKey.replace('this', '') + 'Total']);
+            const totalKey = periodKey === 'thisWeek' ? 'weekTotal' : 'monthTotal';
+            const total = currentClient ? getFilteredValue(data) : (getFilteredValue(data) || dashboardData[totalKey] || 0);
 
             let html = `
                 <div class="kpi-grid">
@@ -1639,7 +1674,7 @@
             const rows = Object.entries(data)
                 .filter(([key, val]) => {
                     if (!currentClient) return true;
-                    return key === currentClient;
+                    return (dashboardData.customerMap[key] || key) === currentClient;
                 })
                 .sort((a, b) => b[1] - a[1]);
 
@@ -2065,21 +2100,27 @@
             return calculateAlerts().length;
         }
 
-        function getBestCampaign() {
-            let best = null;
-            let maxCount = 0;
+        function getBestCampaigns(limit) {
+            limit = limit || 5;
             const monthData = dashboardData.thisMonth || {};
             const weekData = dashboardData.thisWeek || {};
             const checkData = Object.keys(monthData).length > 0 ? monthData : weekData;
+            const customerMap = dashboardData.customerMap || {};
 
+            const customerTotals = {};
             Object.entries(checkData).forEach(([funnel, count]) => {
-                if (count > maxCount) {
-                    maxCount = count;
-                    best = dashboardData.customerMap[funnel] || funnel;
+                if (currentClient) {
+                    const customer = customerMap[funnel] || funnel;
+                    if (customer !== currentClient && funnel !== currentClient) return;
                 }
+                const name = customerMap[funnel] || funnel;
+                customerTotals[name] = (customerTotals[name] || 0) + count;
             });
 
-            return best;
+            return Object.entries(customerTotals)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, limit)
+                .map(([name, count], i) => ({ rank: i + 1, name, count }));
         }
 
         init();
