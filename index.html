@@ -2400,20 +2400,15 @@
             const checkData = Object.keys(monthData).length > 0 ? monthData : weekData;
             const customerMap = dashboardData.customerMap || {};
 
-            const customerTotals = {};
-            Object.entries(checkData).forEach(([funnel, count]) => {
-                if (currentClient) {
+            return Object.entries(checkData)
+                .filter(([funnel, count]) => {
+                    if (!currentClient) return true;
                     const customer = customerMap[funnel] || funnel;
-                    if (customer !== currentClient && funnel !== currentClient) return;
-                }
-                const name = customerMap[funnel] || funnel;
-                customerTotals[name] = (customerTotals[name] || 0) + count;
-            });
-
-            return Object.entries(customerTotals)
+                    return customer === currentClient || funnel === currentClient;
+                })
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, limit)
-                .map(([name, count], i) => ({ rank: i + 1, name, count }));
+                .map(([funnel, count], i) => ({ rank: i + 1, name: funnel, count }));
         }
 
         init();
