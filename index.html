@@ -1852,6 +1852,7 @@
                                 <th>Status</th>
                                 <th>Diese Woche</th>
                                 <th>Dieser Monat</th>
+                                <th>Insgesamt</th>
                                 <th>Aktion</th>
                                 <th>Protokoll</th>
                             </tr>
@@ -1881,8 +1882,11 @@
             const rows = sortedClients.map(funnel => {
                 const customer = dashboardData.customerMap[funnel] || funnel;
                 const status = campaignStatuses[funnel] || 'active';
-                const monthData = getFilteredValue(dashboardData.thisMonth, funnel);
+                const mData = getMonthData();
+                const monthData = mData[funnel] || 0;
                 const weekData = getFilteredValue(dashboardData.thisWeek, funnel);
+                let totalAll = 0;
+                (dashboardData.monthlyBreakdown || []).forEach(m => { totalAll += (m.data || {})[funnel] || 0; });
 
                 if (filter !== 'all' && status !== filter) return null;
 
@@ -1898,7 +1902,8 @@
                             </span>
                         </td>
                         <td>${weekData}</td>
-                        <td><strong>${monthData}</strong></td>
+                        <td>${monthData}</td>
+                        <td><strong>${totalAll}</strong></td>
                         <td>
                             <div class="btn-group">
                                 ${status !== 'active' ? `<button class="btn btn-small btn-success" onclick="setCampaignStatus('${escapedFunnel}', 'active')">Aktivieren</button>` : ''}
@@ -1914,7 +1919,7 @@
                 `;
             }).filter(r => r).join('');
 
-            body.innerHTML = rows || '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Keine Kampagnen gefunden</td></tr>';
+            body.innerHTML = rows || '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Keine Kampagnen gefunden</td></tr>';
         }
 
         function setCampaignStatus(funnel, status) {
