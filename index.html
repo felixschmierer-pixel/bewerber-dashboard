@@ -548,8 +548,13 @@
         }
 
         .status-filled {
-            background: rgba(107, 114, 128, 0.2);
-            color: var(--text-muted);
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--color-info);
+        }
+
+        .status-stopped {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--color-danger);
         }
 
         .btn-group {
@@ -1086,10 +1091,12 @@
                         <span id="lastSync">Synchronisierung...</span>
                     </div>
                 </div>
-                <div class="header-controls">
-                    <select class="client-filter" id="clientFilter">
-                        <option value="">Alle Kunden</option>
-                    </select>
+                <div class="header-controls" style="position: relative;">
+                    <input type="text" id="clientSearch" placeholder="Kunde suchen..." autocomplete="off"
+                        style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 14px; width: 220px;"
+                        onfocus="showClientDropdown()" oninput="filterClientDropdown(this.value)">
+                    <div id="clientDropdown" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; max-height: 300px; overflow-y: auto; z-index: 100; min-width: 250px; box-shadow: var(--shadow);">
+                    </div>
                 </div>
             </div>
 
@@ -1290,31 +1297,64 @@
             document.getElementById('lastSync').textContent = `Aktualisiert: ${time}`;
         }
 
-        function updateClientFilter() {
-            const select = document.getElementById('clientFilter');
-            const current = currentClient;
-
-            while (select.options.length > 1) {
-                select.remove(1);
-            }
-
+        function getAllCustomerNames() {
             const customerNames = new Set();
             (dashboardData.clients || []).forEach(funnel => {
                 customerNames.add(dashboardData.customerMap[funnel] || funnel);
             });
-            Array.from(customerNames).sort().forEach(name => {
-                const opt = document.createElement('option');
-                opt.value = name;
-                opt.textContent = name;
-                select.appendChild(opt);
-            });
-
-            select.value = current;
-            select.onchange = (e) => {
-                currentClient = e.target.value;
-                renderTab(currentTab);
-            };
+            return Array.from(customerNames).sort();
         }
+
+        function updateClientFilter() {
+            const searchInput = document.getElementById('clientSearch');
+            if (currentClient) {
+                searchInput.value = currentClient;
+            } else {
+                searchInput.value = '';
+                searchInput.placeholder = 'Kunde suchen...';
+            }
+        }
+
+        function showClientDropdown() {
+            filterClientDropdown(document.getElementById('clientSearch').value);
+            document.getElementById('clientDropdown').style.display = 'block';
+        }
+
+        function filterClientDropdown(query) {
+            const dropdown = document.getElementById('clientDropdown');
+            const names = getAllCustomerNames();
+            const q = query.toLowerCase();
+            const filtered = q ? names.filter(n => n.toLowerCase().includes(q)) : names;
+
+            let html = `<div onclick="selectClient('')" style="padding: 8px 14px; cursor: pointer; font-size: 13px; color: var(--color-primary-light); border-bottom: 1px solid var(--border-color);">Alle Kunden</div>`;
+            filtered.forEach(name => {
+                const isActive = name === currentClient;
+                html += `<div onclick="selectClient('${name.replace(/'/g, "\\'")}')" style="padding: 8px 14px; cursor: pointer; font-size: 13px; ${isActive ? 'background: var(--bg-hover); font-weight: 600;' : ''}"
+                    onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background='${isActive ? 'var(--bg-hover)' : ''}'">
+                    ${name}
+                </div>`;
+            });
+            if (filtered.length === 0) {
+                html += '<div style="padding: 8px 14px; font-size: 13px; color: var(--text-muted);">Kein Kunde gefunden</div>';
+            }
+            dropdown.innerHTML = html;
+            dropdown.style.display = 'block';
+        }
+
+        function selectClient(name) {
+            currentClient = name;
+            document.getElementById('clientSearch').value = name;
+            document.getElementById('clientDropdown').style.display = 'none';
+            renderTab(currentTab);
+        }
+
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('clientDropdown');
+            const search = document.getElementById('clientSearch');
+            if (dropdown && search && !dropdown.contains(e.target) && e.target !== search) {
+                dropdown.style.display = 'none';
+            }
+        });
 
         function renderTab(tabId) {
             const content = document.getElementById('contentArea');
@@ -1786,11 +1826,11 @@
                         <div class="counter-value">${pausedCampaigns}</div>
                     </div>
                     <div class="counter-item">
-                        <div class="counter-label">Besetzt</div>
+                        <div class="counter-label">Stelle besetzt</div>
                         <div class="counter-value">${filledCampaigns}</div>
                     </div>
                     <div class="counter-item">
-                        <div class="counter-label">Eingestellt</div>
+                        <div class="counter-label">Deaktiviert</div>
                         <div class="counter-value">${stoppedCampaigns}</div>
                     </div>
                 </div>
@@ -1799,8 +1839,8 @@
                     <button class="filter-btn active" onclick="filterCampaigns('all')">Alle</button>
                     <button class="filter-btn" onclick="filterCampaigns('active')">Aktiv</button>
                     <button class="filter-btn" onclick="filterCampaigns('paused')">Pausiert</button>
-                    <button class="filter-btn" onclick="filterCampaigns('filled')">Besetzt</button>
-                    <button class="filter-btn" onclick="filterCampaigns('stopped')">Eingestellt</button>
+                    <button class="filter-btn" onclick="filterCampaigns('filled')">Stelle besetzt</button>
+                    <button class="filter-btn" onclick="filterCampaigns('stopped')">Deaktiviert</button>
                 </div>
 
                 <div class="table-container">
@@ -1813,6 +1853,7 @@
                                 <th>Diese Woche</th>
                                 <th>Dieser Monat</th>
                                 <th>Aktion</th>
+                                <th>Protokoll</th>
                             </tr>
                         </thead>
                         <tbody id="campaignsBody">
@@ -1845,24 +1886,29 @@
 
                 if (filter !== 'all' && status !== filter) return null;
 
+                const history = (costSettings.statusHistory || {})[funnel] || [];
+                const escapedFunnel = funnel.replace(/'/g, "\\'");
                 return `
                     <tr class="${status === 'paused' ? 'paused' : status === 'filled' ? 'filled' : status === 'stopped' ? 'filled' : ''}">
-                        <td>${customer}</td>
+                        <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${customer.replace(/'/g, "\\'")}')" style="color: var(--color-primary-light); text-decoration: none;">${customer}</a></td>
                         <td style="font-size: 12px; color: var(--text-muted);">${funnel}</td>
                         <td>
                             <span class="status-badge status-${status}">
-                                ${status === 'active' ? 'Aktiv' : status === 'paused' ? 'Pausiert' : status === 'filled' ? 'Besetzt' : status === 'stopped' ? 'Eingestellt' : 'Aktiv'}
+                                ${status === 'active' ? 'Aktiv' : status === 'paused' ? 'Pausiert' : status === 'filled' ? 'Stelle besetzt' : status === 'stopped' ? 'Deaktiviert' : 'Aktiv'}
                             </span>
                         </td>
                         <td>${weekData}</td>
                         <td><strong>${monthData}</strong></td>
                         <td>
                             <div class="btn-group">
-                                ${status !== 'active' ? `<button class="btn btn-small btn-success" onclick="setCampaignStatus('${funnel}', 'active')">Aktiv</button>` : ''}
-                                ${status !== 'paused' ? `<button class="btn btn-small btn-warning" onclick="setCampaignStatus('${funnel}', 'paused')">Pausieren</button>` : ''}
-                                ${status !== 'filled' ? `<button class="btn btn-small btn-danger" onclick="setCampaignStatus('${funnel}', 'filled')">Besetzt</button>` : ''}
-                                ${status !== 'stopped' ? `<button class="btn btn-small" style="background: var(--text-muted); color: #fff;" onclick="setCampaignStatus('${funnel}', 'stopped')">Eingestellt</button>` : ''}
+                                ${status !== 'active' ? `<button class="btn btn-small btn-success" onclick="setCampaignStatus('${escapedFunnel}', 'active')">Aktivieren</button>` : ''}
+                                ${status !== 'paused' ? `<button class="btn btn-small" style="background: var(--color-warning); color: #fff;" onclick="setCampaignStatus('${escapedFunnel}', 'paused')">Pausieren</button>` : ''}
+                                ${status !== 'filled' ? `<button class="btn btn-small" style="background: var(--color-info); color: #fff;" onclick="setCampaignStatus('${escapedFunnel}', 'filled')">Stelle besetzt</button>` : ''}
+                                ${status !== 'stopped' ? `<button class="btn btn-small" style="background: var(--color-danger); color: #fff;" onclick="setCampaignStatus('${escapedFunnel}', 'stopped')">Deaktiviert</button>` : ''}
                             </div>
+                        </td>
+                        <td style="font-size: 11px; color: var(--text-muted); max-width: 180px;">
+                            ${history.length > 0 ? history.slice(-3).map(h => `<div>${h.date} ${h.time}: ${h.to}</div>`).join('') : ''}
                         </td>
                     </tr>
                 `;
@@ -1872,9 +1918,24 @@
         }
 
         function setCampaignStatus(funnel, status) {
+            const oldStatus = campaignStatuses[funnel] || 'active';
             campaignStatuses[funnel] = status;
+            const statusLabelsMap = { active: 'Aktiv', paused: 'Pausiert', filled: 'Stelle besetzt', stopped: 'Deaktiviert' };
+            if (!costSettings.statusHistory) costSettings.statusHistory = {};
+            if (!costSettings.statusHistory[funnel]) costSettings.statusHistory[funnel] = [];
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+            costSettings.statusHistory[funnel].push({
+                from: statusLabelsMap[oldStatus] || oldStatus,
+                to: statusLabelsMap[status] || status,
+                date: dateStr,
+                time: timeStr
+            });
             saveLocalStorage();
-            filterCampaigns(document.querySelector('.filter-btn.active').onclick.toString().match(/'(\w+)'/)[1]);
+            try {
+                filterCampaigns(document.querySelector('.filter-btn.active').onclick.toString().match(/'(\w+)'/)[1]);
+            } catch(e) { filterCampaigns('all'); }
             renderAlertPanel();
         }
 
@@ -2151,7 +2212,7 @@
                         <div class="kpi-value">${pausedCampaigns} / ${filledCampaigns}</div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-label">Eingestellt</div>
+                        <div class="kpi-label">Deaktiviert</div>
                         <div class="kpi-value">${stoppedCampaigns}</div>
                     </div>
                 </div>
@@ -2237,8 +2298,8 @@
 
             funnels.forEach(funnel => {
                 const status = campaignStatuses[funnel] || 'active';
-                const statusLabels = { active: 'Aktiv', paused: 'Pausiert', filled: 'Besetzt', stopped: 'Eingestellt' };
-                const statusColors = { active: 'var(--color-success)', paused: 'var(--color-warning)', filled: 'var(--color-info)', stopped: 'var(--text-muted)' };
+                const statusLabels = { active: 'Aktiv', paused: 'Pausiert', filled: 'Stelle besetzt', stopped: 'Deaktiviert' };
+                const statusColors = { active: 'var(--color-success)', paused: 'var(--color-warning)', filled: 'var(--color-info)', stopped: 'var(--color-danger)' };
                 const lastApp = (dashboardData.recentApplicants || []).find(a => a.client === funnel);
                 const campDetail = (profile.campaigns || {})[funnel] || {};
                 const escapedFunnel = funnel.replace(/'/g, "\\'");
@@ -2351,8 +2412,8 @@
                         <ul style="list-style: none; margin: 10px 0; color: var(--text-secondary); font-size: 14px;">
                             <li style="margin: 8px 0;"><strong>Aktiv:</strong> Kampagne ist im Einsatz und wird überwacht</li>
                             <li style="margin: 8px 0;"><strong>Pausiert:</strong> Kampagne ist temporär deaktiviert, löst keine Alarme aus</li>
-                            <li style="margin: 8px 0;"><strong>Besetzt:</strong> Position ist besetzt, wird nicht überwacht</li>
-                            <li style="margin: 8px 0;"><strong>Eingestellt:</strong> Kampagne wurde beendet ohne Besetzung</li>
+                            <li style="margin: 8px 0;"><strong>Stelle besetzt:</strong> Position wurde erfolgreich besetzt</li>
+                            <li style="margin: 8px 0;"><strong>Deaktiviert:</strong> Kampagne ohne Erfolg beendet (z.B. auf Kundenwunsch offline genommen)</li>
                         </ul>
                     </div>
 
