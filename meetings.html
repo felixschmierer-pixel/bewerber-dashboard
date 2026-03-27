@@ -818,16 +818,133 @@
         // Initialize form date to today
         document.getElementById('dateInput').valueAsDate = new Date();
 
-        // Load data from localStorage
-        function loadMeetings() {
+        // ===== n8n API Integration =====
+        // Trage hier deine n8n Webhook URL ein, sobald der Workflow aktiv ist
+        // Format: https://deine-n8n-domain.com/webhook/meetings-api
+        const N8N_MEETINGS_API = localStorage.getItem('n8n_meetings_api_url') || 'https://redline-grow.app.n8n.cloud/webhook/meetings-api';
+        let apiMeetings = []; // Meetings aus n8n (Google Calendar + Calendly)
+        let apiSyncStatus = 'idle'; // idle, loading, success, error
+
+        // n8n Daten in Dashboard Format umwandeln
+        function mapApiMeeting(row) {
+            // Datum von dd.MM.yyyy nach yyyy-MM-dd
+            let dateFormatted = row.datum || '';
+            if (dateFormatted.includes('.')) {
+                const parts = dateFormatted.split('.');
+                if (parts.length === 3) dateFormatted = parts[2] + '-' + parts[1] + '-' + parts[0];
+            }
+
+            // Typ Mapping
+            const typMap = {
+                'Update Meeting': 'kundengespräch',
+                'Kundengespräch': 'kundengespräch',
+                'Kick Off': 'kundengespräch',
+                'Strategieberatung': 'kundengespräch',
+                'Bewerber Vorqualifizierung': 'vorqualifizierung',
+                'Internes Meeting': 'internes'
+            };
+
+            return {
+                id: 'api_' + (row.meeting_id || row.id || Math.random().toString(36).substr(2)),
+                customer: row.kunde || row.titel || 'Unbekannt',
+                date: dateFormatted,
+                type: typMap[row.typ] || 'kundengespräch',
+                summary: row.zusammenfassung || '',
+                actionItems: row.action_items ? row.action_items.split('\n').filter(t => t.trim()).map(t => ({ text: t.trim(), completed: false })) : [],
+                recordingLink: row.recording_link || null,
+                createdAt: row.datum || new Date().toISOString(),
+                _source: 'api',
+                _apiTyp: row.typ || '',
+                _teilnehmer: row.teilnehmer || '',
+                _startzeit: row.startzeit || '',
+                _endzeit: row.endzeit || '',
+                _teamsLink: row.teams_link || '',
+                _quelle: row.quelle || '',
+                _gcalId: row.gcal_event_id || '',
+                _calendlyUri: row.calendly_uri || ''
+            };
+        }
+
+        // Meetings von n8n API laden
+        async function loadFromApi() {
+            if (!N8N_MEETINGS_API) return;
+            apiSyncStatus = 'loading';
+            updateSyncIndicator();
+            try {
+                const resp = await fetch(N8N_MEETINGS_API);
+                if (!resp.ok) throw new Error('API Fehler: ' + resp.status);
+                const data = await resp.json();
+                if (data.success && data.meetings) {
+                    apiMeetings = data.meetings.map(mapApiMeeting);
+                }
+                apiSyncStatus = 'success';
+            } catch (err) {
+                console.warn('n8n API nicht erreichbar:', err.message);
+                apiSyncStatus = 'error';
+            }
+            updateSyncIndicator();
+            updateStats();
+            renderMeetings();
+        }
+
+        // Sync Status Anzeige
+        function updateSyncIndicator() {
+            let indicator = document.getElementById('syncIndicator');
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.id = 'syncIndicator';
+                indicator.style.cssText = 'position: fixed; bottom: 20px; right: 20px; padding: 8px 16px; border-radius: 8px; font-size: 12px; z-index: 999; background: var(--bg-card); border: 1px solid var(--border-color);';
+                document.body.appendChild(indicator);
+            }
+            if (!N8N_MEETINGS_API) {
+                indicator.innerHTML = '⚙️ n8n API nicht konfiguriert';
+                indicator.style.opacity = '0.5';
+                return;
+            }
+            const states = {
+                idle: '⏳ Sync bereit',
+                loading: '🔄 Lade Meetings...',
+                success: '✅ ' + apiMeetings.length + ' Meetings synchronisiert',
+                error: '⚠️ API nicht erreichbar'
+            };
+            indicator.innerHTML = states[apiSyncStatus] || '';
+            indicator.style.opacity = '1';
+            if (apiSyncStatus === 'success') {
+                setTimeout(() => { indicator.style.opacity = '0.3'; }, 3000);
+            }
+        }
+
+        // Load data from localStorage (manuelle Einträge)
+        function loadLocalMeetings() {
             const data = localStorage.getItem('fulfillmentMeetings');
             return data ? JSON.parse(data) : [];
         }
 
-        // Save data to localStorage
-        function saveMeetings(meetings) {
-            localStorage.setItem('fulfillmentMeetings', JSON.stringify(meetings));
+        // Alle Meetings laden (API + lokale)
+        function loadMeetings() {
+            const local = loadLocalMeetings();
+            // Merge: API Meetings + lokale Meetings, Duplikate vermeiden
+            const allMeetings = [...apiMeetings];
+            local.forEach(m => {
+                // Nur hinzufügen wenn kein API Meeting mit gleicher ID existiert
+                if (!allMeetings.find(a => a.id === m.id)) {
+                    allMeetings.push(m);
+                }
+            });
+            return allMeetings;
         }
+
+        // Save data to localStorage (nur lokale manuelle Einträge)
+        function saveMeetings(meetings) {
+            // Nur Meetings ohne _source: 'api' speichern
+            const localOnly = meetings.filter(m => m._source !== 'api');
+            localStorage.setItem('fulfillmentMeetings', JSON.stringify(localOnly));
+        }
+
+        // Initiales Laden der API Daten
+        loadFromApi();
+        // Auto Refresh alle 5 Minuten
+        setInterval(loadFromApi, 300000);
 
         // Get type badge configuration
         function getTypeBadge(type) {
@@ -902,7 +1019,13 @@
             const filterType = document.getElementById('filterType').value;
 
             let filtered = meetings.filter(m => {
-                const matchesSearch = m.customer.toLowerCase().includes(searchTerm);
+                const searchFields = [
+                    m.customer || '',
+                    m._teilnehmer || '',
+                    m._apiTyp || '',
+                    m.summary || ''
+                ].join(' ').toLowerCase();
+                const matchesSearch = !searchTerm || searchFields.includes(searchTerm);
                 const matchesType = !filterType || m.type === filterType;
                 return matchesSearch && matchesType;
             });
@@ -927,23 +1050,32 @@
                 const summary = meeting.summary || '';
                 const actionCount = (meeting.actionItems || []).length;
                 const openActionCount = (meeting.actionItems || []).filter(ai => !ai.completed).length;
+                const isApi = meeting._source === 'api';
+                const zeitInfo = (meeting._startzeit && meeting._endzeit) ? meeting._startzeit + ' bis ' + meeting._endzeit + ' Uhr' : '';
+                const quelleTag = isApi ? `<span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: ${meeting._quelle === 'Calendly' ? 'rgba(0,107,255,0.15); color: #006bff;' : 'rgba(66,133,244,0.15); color: #4285f4;'}">${meeting._quelle || 'API'}</span>` : '';
 
                 return `
                     <div class="meeting-card" data-id="${meeting.id}">
                         <div class="meeting-header">
                             <div>
-                                <div class="meeting-title">${meeting.customer}</div>
-                                <div class="meeting-date">${formatDate(meeting.date)}</div>
+                                <div class="meeting-title">${meeting.customer} ${quelleTag}</div>
+                                <div class="meeting-date">${formatDate(meeting.date)}${zeitInfo ? ' | ' + zeitInfo : ''}</div>
                             </div>
                         </div>
                         <div class="meeting-info">
-                            <span class="badge ${typeBadge.class}">${typeBadge.label}</span>
+                            <span class="badge ${typeBadge.class}">${isApi && meeting._apiTyp ? meeting._apiTyp : typeBadge.label}</span>
                             ${actionCount > 0 ? `<span style="font-size: 12px; color: var(--text-muted);">${openActionCount}/${actionCount} Action Items</span>` : ''}
                         </div>
+                        ${isApi && meeting._teilnehmer ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">👥 ${meeting._teilnehmer}</div>` : ''}
                         <div class="meeting-summary preview">${summary}</div>
                         <div class="expanded-content" id="expanded-${meeting.id}">
                             <div class="section-title">Zusammenfassung</div>
-                            <div class="meeting-summary">${summary}</div>
+                            <div class="meeting-summary">${summary || '<span style="color: var(--text-muted);">Noch keine Zusammenfassung</span>'}</div>
+                            ${isApi && meeting._teamsLink ? `
+                                <a href="${meeting._teamsLink}" target="_blank" class="recording-link" style="margin-top: 8px; display: inline-block;">
+                                    📹 Teams Meeting beitreten
+                                </a>
+                            ` : ''}
                             ${meeting.recordingLink ? `
                                 <a href="${meeting.recordingLink}" target="_blank" class="recording-link">
                                     🎥 Recording anschauen
@@ -966,8 +1098,8 @@
                         </div>
                         <div class="meeting-actions" style="margin-top: 12px;">
                             <button class="btn btn-sm btn-secondary" onclick="toggleExpand('${meeting.id}')">Details</button>
-                            <button class="btn btn-sm btn-secondary" onclick="editMeeting('${meeting.id}')">Bearbeiten</button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteMeeting('${meeting.id}')">Löschen</button>
+                            ${!isApi ? `<button class="btn btn-sm btn-secondary" onclick="editMeeting('${meeting.id}')">Bearbeiten</button>` : ''}
+                            ${!isApi ? `<button class="btn btn-sm btn-danger" onclick="deleteMeeting('${meeting.id}')">Löschen</button>` : ''}
                         </div>
                     </div>
                 `;
