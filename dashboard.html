@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bewerber Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0f1117;
+      --card: #1a1d27;
+      --card-hover: #222535;
+      --border: #2a2d3a;
+      --text: #e4e6eb;
+      --text-muted: #8b8fa3;
+      --accent: #667eea;
+      --accent-light: #7c93ff;
+      --green: #34d399;
+      --orange: #fb923c;
+      --red: #f87171;
+      --purple: #a78bfa;
+    }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 16px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 32px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header .subtitle {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .header-right {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--card);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .btn-refresh {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+      font-weight: 600;
+    }
+
+    .btn-refresh:hover {
+      background: var(--card-hover);
+      border-color: var(--accent);
+    }
+
+    .btn-refresh:active {
+      transform: scale(0.98);
+    }
+
+    /* Setup Notice */
+    .setup-notice {
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(167, 139, 250, 0.15));
+      border: 1px solid rgba(102, 126, 234, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      display: none;
+    }
+
+    .setup-notice h3 {
+      color: var(--accent-light);
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    .setup-notice-form {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .setup-notice input {
+      flex: 1;
+      min-width: 200px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .setup-notice input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .btn-set-api {
+      background: var(--accent);
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn-set-api:hover {
+      background: var(--accent-light);
+    }
+
+    /* Error Message */
+    .error-message {
+      background: rgba(248, 113, 113, 0.1);
+      border: 1px solid rgba(248, 113, 113, 0.3);
+      color: var(--red);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+
+    /* Client Filter */
+    .filter-section {
+      margin-bottom: 24px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .filter-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .client-select {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-width: 200px;
+    }
+
+    .client-select:hover {
+      border-color: var(--accent);
+    }
+
+    .client-select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.3s;
+    }
+
+    .kpi-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 4px 16px rgba(102, 126, 234, 0.1);
+    }
+
+    .kpi-card.blue { border-top: 3px solid var(--accent); }
+    .kpi-card.green { border-top: 3px solid var(--green); }
+    .kpi-card.orange { border-top: 3px solid var(--orange); }
+    .kpi-card.purple { border-top: 3px solid var(--purple); }
+
+    .kpi-value {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .kpi-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Tab Bar */
+    .tab-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      padding-bottom: 12px;
+    }
+
+    .tab {
+      padding: 8px 16px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      position: relative;
+      transition: color 0.2s;
+      white-space: nowrap;
+    }
+
+    .tab:hover {
+      color: var(--text);
+    }
+
+    .tab.active {
+      color: var(--accent);
+    }
+
+    .tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -12px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+    }
+
+    /* Tab Content */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Two Column Layout */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    @media (max-width: 1024px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Tables */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table thead {
+      background: var(--card-hover);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table th {
+      padding: 12px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .data-table td {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .data-table tbody tr {
+      transition: background 0.2s;
+    }
+
+    .data-table tbody tr:hover {
+      background: var(--card-hover);
+    }
+
+    .client-name {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .client-name.group {
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .client-name.sub {
+      padding-left: 24px;
+      color: var(--text-muted);
+    }
+
+    .count-badge {
+      background: var(--card-hover);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      text-align: right;
+    }
+
+    /* Chart Container */
+    .chart-container {
+      position: relative;
+      height: 350px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .table-container {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    /* Monthly Comparison */
+    .monthly-comparison {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .monthly-table-container {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .monthly-chart-container {
+      position: relative;
+      height: 300px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    /* Recent Applicants */
+    .recent-applicants {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 32px;
+    }
+
+    .recent-applicants h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    .applicant-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+      transition: background 0.2s;
+    }
+
+    .applicant-item:last-child {
+      border-bottom: none;
+    }
+
+    .applicant-item:hover {
+      background: var(--card-hover);
+    }
+
+    .applicant-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      flex-shrink: 0;
+      color: white;
+    }
+
+    .applicant-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .applicant-name {
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .applicant-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+    }
+
+    .applicant-date {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* Instructions Section */
+    .instructions {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .instructions-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s;
+    }
+
+    .instructions-header:hover {
+      background: var(--card-hover);
+    }
+
+    .instructions-title {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .instructions-toggle {
+      color: var(--text-muted);
+      font-size: 18px;
+      transition: transform 0.3s;
+    }
+
+    .instructions-toggle.open {
+      transform: rotate(180deg);
+    }
+
+    .instructions-content {
+      display: none;
+      padding: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .instructions-content.open {
+      display: block;
+    }
+
+    .instruction-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      overflow-x: auto;
+    }
+
+    .instruction-tab {
+      padding: 8px 12px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: color 0.2s;
+    }
+
+    .instruction-tab:hover {
+      color: var(--text);
+    }
+
+    .instruction-tab.active {
+      color: var(--accent);
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .instruction-panel {
+      display: none;
+    }
+
+    .instruction-panel.active {
+      display: block;
+    }
+
+    .instruction-step {
+      margin-bottom: 20px;
+    }
+
+    .instruction-step h4 {
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .instruction-step p {
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+
+    .step-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .step-list li {
+      padding: 8px 0 8px 24px;
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.6;
+      position: relative;
+    }
+
+    .step-list li::before {
+      content: attr(data-number);
+      position: absolute;
+      left: 0;
+      width: 20px;
+      height: 20px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .color-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin: 12px 0;
+    }
+
+    .color-card {
+      background: var(--card-hover);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .color-card.green {
+      border-left: 3px solid var(--green);
+    }
+
+    .color-card.orange {
+      border-left: 3px solid var(--orange);
+    }
+
+    .color-card.purple {
+      border-left: 3px solid var(--purple);
+    }
+
+    .color-card strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--text);
+    }
+
+    .webhook-generator {
+      background: var(--card-hover);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin: 12px 0;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      min-width: 70px;
+    }
+
+    .form-group input,
+    .form-group select {
+      flex: 1;
+      min-width: 120px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .form-group input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .btn-generate {
+      background: var(--accent);
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn-generate:hover {
+      background: var(--accent-light);
+    }
+
+    .webhook-url {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'Courier New', monospace;
+      word-break: break-all;
+      margin: 8px 0;
+    }
+
+    .btn-copy {
+      background: var(--purple);
+      border: none;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn-copy:hover {
+      opacity: 0.9;
+    }
+
+    .meetovo-steps {
+      background: var(--card-hover);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin: 12px 0;
+    }
+
+    .meetovo-step {
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .meetovo-step:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .meetovo-step-num {
+      font-weight: 700;
+      color: var(--accent);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .meetovo-step-text {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      body {
+        padding: 12px;
+      }
+
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .header-right {
+        width: 100%;
+        flex-direction: column;
+      }
+
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .tab-bar {
+        gap: 4px;
+      }
+
+      .tab {
+        padding: 6px 12px;
+        font-size: 12px;
+      }
+
+      .setup-notice-form {
+        flex-direction: column;
+      }
+
+      .data-table th,
+      .data-table td {
+        padding: 8px;
+        font-size: 12px;
+      }
+
+      .form-group {
+        flex-direction: column;
+      }
+
+      .form-group label {
+        min-width: auto;
+      }
+    }
+
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-left">
+        <h1>Bewerber Dashboard</h1>
+        <div class="subtitle">Meetovo Applicant Tracking System</div>
+      </div>
+      <div class="header-right">
+        <div class="status-badge">
+          <span class="status-dot"></span>
+          <span id="lastUpdated">Aktualisiert vor 0s</span>
+        </div>
+        <button class="btn-refresh" onclick="refreshData()">Aktualisieren</button>
+      </div>
+    </div>
+
+    <div class="setup-notice" id="setupNotice">
+      <h3>API URL erforderlich</h3>
+      <div class="setup-notice-form">
+        <input type="text" id="apiInput" placeholder="https://script.google.com/macros/..." />
+        <button class="btn-set-api" onclick="setApiUrl()">Speichern</button>
+      </div>
+    </div>
+
+    <div id="errorMessage"></div>
+
+    <div class="filter-section">
+      <span class="filter-label">Kunde</span>
+      <select class="client-select" id="clientFilter" onchange="filterClient(this.value)">
+        <option value="">Alle Kunden</option>
+      </select>
+    </div>
+
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="tab-bar">
+      <button class="tab active" onclick="switchTab('today')">Heute</button>
+      <button class="tab" onclick="switchTab('yesterday')">Gestern</button>
+      <button class="tab" onclick="switchTab('week')">Woche</button>
+      <button class="tab" onclick="switchTab('month')">Monat</button>
+      <button class="tab" onclick="switchTab('comparison')">Monatsvergleich</button>
+    </div>
+
+    <div id="today" class="tab-content active">
+      <div class="content-grid">
+        <div id="todayTable"></div>
+        <div id="todayChart"></div>
+      </div>
+    </div>
+
+    <div id="yesterday" class="tab-content">
+      <div class="content-grid">
+        <div id="yesterdayTable"></div>
+        <div id="yesterdayChart"></div>
+      </div>
+    </div>
+
+    <div id="week" class="tab-content">
+      <div class="content-grid">
+        <div id="weekTable"></div>
+        <div id="weekChart"></div>
+      </div>
+    </div>
+
+    <div id="month" class="tab-content">
+      <div class="content-grid">
+        <div id="monthTable"></div>
+        <div id="monthChart"></div>
+      </div>
+    </div>
+
+    <div id="comparison" class="tab-content">
+      <div id="monthlyComparison"></div>
+    </div>
+
+    <div class="recent-applicants">
+      <h3>Kürzliche Bewerbungen</h3>
+      <div id="recentApplicantsList"></div>
+    </div>
+
+    <div class="instructions">
+      <div class="instructions-header" onclick="toggleInstructions()">
+        <span class="instructions-title">Anleitung</span>
+        <span class="instructions-toggle" id="instructionsToggle">▼</span>
+      </div>
+      <div class="instructions-content" id="instructionsContent">
+        <div class="instruction-tabs">
+          <button class="instruction-tab active" onclick="switchInstructionTab('step1')">Step 1</button>
+          <button class="instruction-tab" onclick="switchInstructionTab('step2')">Step 2</button>
+          <button class="instruction-tab" onclick="switchInstructionTab('step3')">Step 3</button>
+          <button class="instruction-tab" onclick="switchInstructionTab('step4')">Step 4</button>
+        </div>
+
+        <div id="step1" class="instruction-panel active">
+          <div class="instruction-step">
+            <h4>Schritt 1: Funnel Typ bestimmen</h4>
+            <p>Wählen Sie, wie Ihre Daten strukturiert werden sollen:</p>
+            <div class="color-cards">
+              <div class="color-card green">
+                <strong>Standard</strong>
+                Beruf und Firma<br/>
+                z.B. "Stuckateur und Meier"
+              </div>
+              <div class="color-card orange">
+                <strong>Mit Standort</strong>
+                Beruf und Firma | Ort<br/>
+                z.B. "Stuckateur und Meier | München"
+              </div>
+              <div class="color-card purple">
+                <strong>Mit Quelle</strong>
+                Beruf und Firma | Quelle<br/>
+                z.B. "Stuckateur und Meier | LinkedIn"
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="step2" class="instruction-panel">
+          <div class="instruction-step">
+            <h4>Schritt 2: Webhook URL generieren</h4>
+            <p>Einfach Position und Firma eingeben. Das System erkennt automatisch, welcher Teil die Firma ist. Reihenfolge und Format sind egal.</p>
+            <div class="webhook-generator">
+              <div class="form-group">
+                <label>Position (Beruf)</label>
+                <input type="text" id="webhookJob" placeholder="z.B. Stuckateur" />
+              </div>
+              <div class="form-group">
+                <label>Firma (Kundenname)</label>
+                <input type="text" id="webhookCompany" placeholder="z.B. Meier Bau" />
+              </div>
+              <div class="form-group">
+                <label>Typ</label>
+                <select id="webhookType">
+                  <option value="standard">Standard</option>
+                  <option value="location">Standort</option>
+                  <option value="source">Quelle</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Detail</label>
+                <input type="text" id="webhookDetail" placeholder="z.B. München (bei Standort/Quelle)" />
+                <button class="btn-generate" onclick="generateWebhookUrl()">Generieren</button>
+              </div>
+            </div>
+            <div id="webhookResult" style="margin-top: 12px;"></div>
+          </div>
+          <div class="instruction-step">
+            <h4>Regeln für Webhook URLs</h4>
+            <ul class="step-list">
+              <li data-number="1">Verwenden Sie "und" statt "&" in der URL</li>
+              <li data-number="2">Der Text vor "|" muss exakt gleich sein</li>
+              <li data-number="3">Format: Beruf und Firma | Detail</li>
+              <li data-number="4">Keine Sonderzeichen außer Leerzeichen und Bindestrich</li>
+            </ul>
+          </div>
+        </div>
+
+        <div id="step3" class="instruction-panel">
+          <div class="instruction-step">
+            <h4>Schritt 3: Webhook in Meetovo eintragen</h4>
+            <p>Folgen Sie diese Schritte in Meetovo:</p>
+            <div class="meetovo-steps">
+              <div class="meetovo-step">
+                <div class="meetovo-step-num">1. Dashboard aufrufen</div>
+                <div class="meetovo-step-text">Gehen Sie zu Ihrem Meetovo Dashboard und wählen Sie den gewünschten Funnel</div>
+              </div>
+              <div class="meetovo-step">
+                <div class="meetovo-step-num">2. Einstellungen öffnen</div>
+                <div class="meetovo-step-text">Klicken Sie auf das Zahnrad Symbol und dann auf "Integrationen" oder "Webhooks"</div>
+              </div>
+              <div class="meetovo-step">
+                <div class="meetovo-step-num">3. Webhook URL einfügen</div>
+                <div class="meetovo-step-text">Kopieren Sie die generierte Webhook URL und fügen Sie sie in das entsprechende Feld ein</div>
+              </div>
+              <div class="meetovo-step">
+                <div class="meetovo-step-num">4. Speichern und aktivieren</div>
+                <div class="meetovo-step-text">Speichern Sie die Einstellungen und aktivieren Sie den Webhook</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="step4" class="instruction-panel">
+          <div class="instruction-step">
+            <h4>Schritt 4: Webhook testen</h4>
+            <p>So testen Sie, ob alles funktioniert:</p>
+            <ul class="step-list">
+              <li data-number="1">Senden Sie eine Test Bewerbung in Meetovo</li>
+              <li data-number="2">Warten Sie 1 bis 2 Minuten</li>
+              <li data-number="3">Aktualisieren Sie dieses Dashboard</li>
+              <li data-number="4">Die neue Bewerbung sollte in den Kürzliche Bewerbungen angezeigt werden</li>
+            </ul>
+            <h4 style="margin-top: 16px;">Häufige Probleme</h4>
+            <ul class="step-list">
+              <li data-number="1">Keine Daten erscheinen: Überprüfen Sie die Webhook URL Syntax</li>
+              <li data-number="2">Falsche Kategorie: Der Text vor "|" muss exakt gleich sein</li>
+              <li data-number="3">Zahl bleibt gleich: Webhook könnte nicht aktiv sein</li>
+              <li data-number="4">API funktioniert nicht: Überprüfen Sie die API URL oben</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // === API URL fest eingebaut fuer GitHub Pages ===
+    const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzVJ7QUO8dOEbtxmql11OCjlmBI8Ene7CfTghoI2nvSnGvt-wpMpx3tkO6cDrNhR0OgtA/exec';
+    let API_URL = '';
+    let dashboardData = null;
+    let currentTab = 'today';
+    let selectedClient = '';
+    let charts = {};
+    let lastRefreshTime = null;
+
+    function init() {
+      const params = new URLSearchParams(window.location.search);
+      API_URL = params.get('api') || DEFAULT_API_URL;
+      if (!API_URL) {
+        document.getElementById('setupNotice').style.display = 'block';
+      } else {
+        document.getElementById('setupNotice').style.display = 'none';
+        loadData();
+        setInterval(loadData, 5 * 60 * 1000);
+      }
+    }
+
+    function setApiUrl() {
+      const input = document.getElementById('apiInput');
+      const url = input.value.trim();
+      if (url) {
+        const params = new URLSearchParams();
+        params.set('api', url);
+        window.location.search = params;
+      }
+    }
+
+    function loadData() {
+      if (!API_URL) return;
+      const btn = document.querySelector('.btn-refresh');
+      btn.classList.add('loading');
+      btn.textContent = 'Wird aktualisiert...';
+      const separator = API_URL.includes('?') ? '&' : '?';
+      const fetchUrl = API_URL + separator + 'action=dashboard';
+      fetch(fetchUrl)
+        .then(r => r.json())
+        .then(data => {
+          dashboardData = data;
+          lastRefreshTime = new Date();
+          document.getElementById('errorMessage').innerHTML = '';
+          renderAll();
+          updateRefreshTime();
+        })
+        .catch(err => {
+          showError('Fehler beim Laden der Daten: ' + err.message);
+        })
+        .finally(() => {
+          btn.classList.remove('loading');
+          btn.textContent = 'Aktualisieren';
+        });
+    }
+
+    function refreshData() {
+      loadData();
+    }
+
+    function showError(msg) {
+      document.getElementById('errorMessage').innerHTML = '<div class="error-message">' + escapeHtml(msg) + '</div>';
+    }
+
+    function renderAll() {
+      if (!dashboardData) return;
+      updateClientFilter();
+      renderKPIs();
+      renderTabContent();
+      renderRecentApplicants();
+    }
+
+    function getCustomerForFunnel(funnelName) {
+      if (dashboardData && dashboardData.customerMap && dashboardData.customerMap[funnelName]) {
+        return dashboardData.customerMap[funnelName];
+      }
+      return funnelName;
+    }
+
+    function updateClientFilter() {
+      const select = document.getElementById('clientFilter');
+      const clients = dashboardData.clients || [];
+      const customerNames = new Set();
+      clients.forEach(client => {
+        customerNames.add(getCustomerForFunnel(client));
+      });
+      const sorted = Array.from(customerNames).sort();
+      const html = '<option value="">Alle Kunden (' + (dashboardData.total || 0) + ')</option>' +
+        sorted.map(name => '<option value="' + escapeHtml(name) + '">' + escapeHtml(name) + '</option>').join('');
+      select.innerHTML = html;
+      select.value = selectedClient;
+    }
+
+    function renderKPIs() {
+      const today = getFilteredData('today');
+      const yesterday = getFilteredData('yesterday');
+      const week = getFilteredData('week');
+      const month = getFilteredData('month');
+      const html = '<div class="kpi-card blue"><div class="kpi-value">' + today.total + '</div><div class="kpi-label">Heute</div></div>' +
+        '<div class="kpi-card green"><div class="kpi-value">' + yesterday.total + '</div><div class="kpi-label">Gestern</div></div>' +
+        '<div class="kpi-card orange"><div class="kpi-value">' + week.total + '</div><div class="kpi-label">Diese Woche</div></div>' +
+        '<div class="kpi-card purple"><div class="kpi-value">' + month.total + '</div><div class="kpi-label">Dieser Monat</div></div>';
+      document.getElementById('kpiGrid').innerHTML = html;
+    }
+
+    function renderTabContent() {
+      if (currentTab === 'comparison') {
+        renderMonthlyComparison();
+      } else {
+        const periods = { today: 'today', yesterday: 'yesterday', week: 'thisWeek', month: 'thisMonth' };
+        const period = periods[currentTab];
+        renderDataTab(period, currentTab);
+      }
+    }
+
+    function renderDataTab(period, tabId) {
+      const data = getFilteredData(period);
+      const grouped = groupByCustomer(data.data);
+      const tableHtml = renderDataTable(grouped);
+      document.getElementById(tabId + 'Table').innerHTML = tableHtml;
+      const chartHtml = '<div class="chart-container"><canvas id="' + tabId + 'Canvas"></canvas></div>';
+      document.getElementById(tabId + 'Chart').innerHTML = chartHtml;
+      setTimeout(() => renderBarChart(tabId, grouped), 50);
+    }
+
+    function renderDataTable(grouped) {
+      let html = '<div class="table-container"><table class="data-table"><thead><tr><th>Kunde</th><th style="text-align: right;">Bewerbungen</th></tr></thead><tbody>';
+      grouped.forEach(item => {
+        if (item.isGroup) {
+          html += '<tr><td class="client-name group">' + escapeHtml(item.name) + '</td><td class="count-badge">' + item.total + '</td></tr>';
+          item.subs.forEach(sub => {
+            html += '<tr><td class="client-name sub">' + escapeHtml(sub.name) + '</td><td class="count-badge">' + sub.count + '</td></tr>';
+          });
+        } else {
+          html += '<tr><td class="client-name">' + escapeHtml(item.name) + '</td><td class="count-badge">' + item.count + '</td></tr>';
+        }
+      });
+      html += '</tbody></table></div>';
+      return html;
+    }
+
+    function renderMonthlyComparison() {
+      if (!dashboardData.monthlyBreakdown || dashboardData.monthlyBreakdown.length === 0) {
+        document.getElementById('monthlyComparison').innerHTML = '<div style="color: var(--text-muted); padding: 20px;">Keine Daten vorhanden</div>';
+        return;
+      }
+      const months = dashboardData.monthlyBreakdown;
+      let filtered = months;
+      if (selectedClient) {
+        filtered = months.map(m => {
+          let clientTotal = 0;
+          Object.entries(m.data).forEach(([funnel, count]) => {
+            const customerName = getCustomerForFunnel(funnel);
+            if (customerName === selectedClient) clientTotal += count;
+          });
+          return Object.assign({}, m, { total: clientTotal });
+        });
+      }
+      let html = '<div class="monthly-table-container"><table class="data-table"><thead><tr><th>Monat</th><th style="text-align: right;">Bewerbungen</th><th style="text-align: right;">Veränderung</th></tr></thead><tbody>';
+      filtered.forEach((month, idx) => {
+        const prevMonth = idx > 0 ? filtered[idx - 1] : null;
+        let changeHtml = '<td style="text-align: right; color: var(--text-muted);">—</td>';
+        if (prevMonth && prevMonth.total > 0) {
+          const change = ((month.total - prevMonth.total) / prevMonth.total) * 100;
+          const color = change >= 0 ? 'var(--green)' : 'var(--red)';
+          const sign = change >= 0 ? '+' : '';
+          changeHtml = '<td style="text-align: right; color: ' + color + ';">' + sign + change.toFixed(0) + '%</td>';
+        }
+        html += '<tr><td>' + escapeHtml(month.label) + '</td><td style="text-align: right; font-weight: 600;">' + month.total + '</td>' + changeHtml + '</tr>';
+      });
+      html += '</tbody></table></div>';
+      document.getElementById('monthlyComparison').innerHTML = html;
+      const chartContainer = document.createElement('div');
+      chartContainer.className = 'monthly-chart-container';
+      chartContainer.innerHTML = '<canvas id="monthlyCanvas"></canvas>';
+      document.getElementById('monthlyComparison').appendChild(chartContainer);
+      setTimeout(() => renderMonthlyChart(filtered), 50);
+    }
+
+    function renderRecentApplicants() {
+      const applicants = dashboardData.recentApplicants || [];
+      let filtered = applicants;
+      if (selectedClient) {
+        filtered = applicants.filter(a => {
+          return getCustomerForFunnel(a.client) === selectedClient;
+        });
+      }
+      filtered = filtered.slice(0, 50);
+      let html = '';
+      filtered.forEach(app => {
+        const initials = getInitials(app.name);
+        const color = hashString(app.name);
+        html += '<div class="applicant-item"><div class="applicant-avatar" style="background: ' + color + ';">' + initials + '</div><div class="applicant-info"><div class="applicant-name">' + escapeHtml(app.name) + '</div><div class="applicant-meta"><span>' + escapeHtml(app.client) + '</span><span>' + escapeHtml(app.city) + '</span></div></div><div class="applicant-date">' + app.date + '</div></div>';
+      });
+      document.getElementById('recentApplicantsList').innerHTML = html || '<div style="color: var(--text-muted); padding: 12px;">Keine Bewerbungen</div>';
+    }
+
+    function renderBarChart(tabId, grouped) {
+      if (charts[tabId]) charts[tabId].destroy();
+      const labels = [];
+      const data = [];
+      const colors = [];
+      grouped.forEach(item => {
+        if (item.isGroup) {
+          labels.push(item.name);
+          data.push(item.total);
+          colors.push('#667eea');
+        } else {
+          labels.push(item.name);
+          data.push(item.count);
+          colors.push('#a78bfa');
+        }
+      });
+      const ctx = document.getElementById(tabId + 'Canvas').getContext('2d');
+      charts[tabId] = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: labels, datasets: [{ label: 'Bewerbungen', data: data, backgroundColor: colors, borderRadius: 6, borderSkipped: false }] },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 11 } } },
+            y: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.7)', font: { size: 12 } } }
+          }
+        }
+      });
+    }
+
+    function renderMonthlyChart(months) {
+      if (charts['monthly']) charts['monthly'].destroy();
+      const labels = months.map(m => m.label.split(' ')[0]);
+      const data = months.map(m => m.total);
+      const ctx = document.getElementById('monthlyCanvas').getContext('2d');
+      charts['monthly'] = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: labels, datasets: [{ label: 'Bewerbungen', data: data, backgroundColor: '#667eea', borderRadius: 6, borderSkipped: false }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 11 } } },
+            y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 11 } } }
+          }
+        }
+      });
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      const tabs = ['today', 'yesterday', 'week', 'month', 'comparison'];
+      document.querySelectorAll('.tab').forEach((el, idx) => {
+        el.classList.toggle('active', tabs[idx] === tab);
+      });
+      document.querySelectorAll('.tab-content').forEach(el => {
+        el.classList.toggle('active', el.id === tab);
+      });
+      renderTabContent();
+    }
+
+    function switchInstructionTab(step) {
+      const stepNum = step.slice(4);
+      document.querySelectorAll('.instruction-tab').forEach(el => {
+        el.classList.toggle('active', el.textContent.includes('Step ' + stepNum));
+      });
+      document.querySelectorAll('.instruction-panel').forEach(el => {
+        el.classList.toggle('active', el.id === step);
+      });
+    }
+
+    function toggleInstructions() {
+      const content = document.getElementById('instructionsContent');
+      const toggle = document.getElementById('instructionsToggle');
+      content.classList.toggle('open');
+      toggle.classList.toggle('open');
+    }
+
+    function filterClient(value) {
+      selectedClient = value;
+      renderAll();
+    }
+
+    function getFilteredData(period) {
+      if (!dashboardData) return { data: {}, total: 0 };
+      let raw = {};
+      let total = 0;
+      switch (period) {
+        case 'today': raw = dashboardData.today || {}; total = dashboardData.todayTotal || 0; break;
+        case 'yesterday': raw = dashboardData.yesterday || {}; total = dashboardData.yesterdayTotal || 0; break;
+        case 'week': raw = dashboardData.thisWeek || {}; total = dashboardData.weekTotal || 0; break;
+        case 'month': raw = dashboardData.thisMonth || {}; total = dashboardData.monthTotal || 0; break;
+      }
+      if (!selectedClient) return { data: raw, total: total };
+      const filtered = {};
+      Object.keys(raw).forEach(key => {
+        const customerName = getCustomerForFunnel(key);
+        if (customerName === selectedClient) filtered[key] = raw[key];
+      });
+      const filteredTotal = Object.values(filtered).reduce((a, b) => a + b, 0);
+      return { data: filtered, total: filteredTotal };
+    }
+
+    function groupByCustomer(data) {
+      const groups = {};
+      const ungrouped = [];
+      Object.entries(data).forEach(([funnelName, count]) => {
+        const customerName = getCustomerForFunnel(funnelName);
+        // Wenn Kundenname != Funnelname, dann gibt es eine Position
+        if (customerName !== funnelName) {
+          // Position = alles was nicht der Kundenname ist
+          let position = funnelName;
+          const lowerFunnel = funnelName.toLowerCase();
+          const lowerCustomer = customerName.toLowerCase();
+          const idx = lowerFunnel.indexOf(lowerCustomer);
+          if (idx >= 0) {
+            const before = funnelName.substring(0, idx).replace(/[\-\s_|]+$/g, '').trim();
+            const after = funnelName.substring(idx + customerName.length).replace(/^[\-\s_|]+/g, '').trim();
+            position = before || after || funnelName;
+          }
+          if (!groups[customerName]) groups[customerName] = { subs: [], total: 0 };
+          groups[customerName].subs.push({ name: position, count: count });
+          groups[customerName].total += count;
+        } else {
+          ungrouped.push({ name: funnelName, count: count });
+        }
+      });
+
+      // Wenn ein Kunde nur eine Position hat, zeige trotzdem als Gruppe (fuer Konsistenz)
+      const result = [];
+      Object.entries(groups).forEach(([name, group]) => {
+        if (group.subs.length === 1 && group.subs[0].name === name) {
+          // Einzelner Funnel ohne erkannte Position
+          result.push({ name: name, count: group.total, isGroup: false });
+        } else {
+          result.push({ name: name, isGroup: true, total: group.total, subs: group.subs.sort((a, b) => b.count - a.count) });
+        }
+      });
+      result.push(...ungrouped);
+      result.sort((a, b) => {
+        const aTotal = a.isGroup ? a.total : a.count;
+        const bTotal = b.isGroup ? b.total : b.count;
+        return bTotal - aTotal;
+      });
+      return result;
+    }
+
+    function generateWebhookUrl() {
+      const job = document.getElementById('webhookJob').value.trim();
+      const company = document.getElementById('webhookCompany').value.trim();
+      const type = document.getElementById('webhookType').value;
+      const detail = document.getElementById('webhookDetail').value.trim();
+      if (!job || !company) {
+        alert('Bitte Beruf und Firma eingeben');
+        return;
+      }
+      let funnel = job + '-' + company;
+      if (type !== 'standard' && detail) funnel += '-' + detail;
+      // NICHT ersetzen! & bleibt & und wird durch encodeURIComponent korrekt kodiert
+      const baseUrl = API_URL ? API_URL.split('?')[0] : '';
+      const fullUrl = baseUrl ? baseUrl + '?funnel=' + encodeURIComponent(funnel) : '';
+      const resultDiv = document.getElementById('webhookResult');
+      if (!baseUrl) {
+        resultDiv.innerHTML = '<div style="color: var(--red);">Bitte zuerst die API URL oben verbinden, damit die Webhook URL generiert werden kann.</div>';
+        return;
+      }
+      resultDiv.innerHTML = '<div>' +
+        '<div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Komplette Webhook URL (direkt in Meetovo einfuegen):</div>' +
+        '<div class="webhook-url" style="word-break: break-all; font-size: 12px;">' + escapeHtml(fullUrl) + '</div>' +
+        '<div style="font-size: 11px; color: var(--green); margin-top: 6px;">Das System erkennt automatisch, welcher Teil die Firma ist</div>' +
+        '<button class="btn-copy" onclick="copyToClipboard(\'' + fullUrl.replace(/'/g, '\\\'') + '\')">URL kopieren</button>' +
+        '</div>';
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert('In Zwischenablage kopiert!');
+      }).catch(() => {
+        alert('Fehler beim Kopieren');
+      });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function getInitials(name) {
+      return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    }
+
+    function hashString(str) {
+      const colors = ['#667eea', '#34d399', '#fb923c', '#f87171', '#a78bfa', '#06b6d4'];
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return colors[Math.abs(hash) % colors.length];
+    }
+
+    function updateRefreshTime() {
+      if (!lastRefreshTime) return;
+      const seconds = Math.floor((new Date() - lastRefreshTime) / 1000);
+      const text = seconds < 60 ? 'vor ' + seconds + 's' : 'vor ' + Math.floor(seconds / 60) + 'm';
+      document.getElementById('lastUpdated').textContent = 'Aktualisiert ' + text;
+    }
+
+    setInterval(updateRefreshTime, 1000);
+    init();
+  </script>
+</body>
+</html>

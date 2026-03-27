@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meetings - Fulfillment Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --color-primary: #6366f1;
+            --color-primary-light: #818cf8;
+            --color-primary-dark: #4f46e5;
+            --color-success: #10b981;
+            --color-warning: #f59e0b;
+            --color-danger: #ef4444;
+            --color-info: #3b82f6;
+            --bg-dark: #0f172a;
+            --bg-darker: #1e293b;
+            --bg-card: #1e293b;
+            --bg-hover: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        body.light-mode {
+            --bg-dark: #f8fafc;
+            --bg-darker: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-hover: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #334155;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: var(--bg-darker);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .sidebar-header {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            color: var(--color-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .nav-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+            user-select: none;
+            text-decoration: none;
+            display: block;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--color-primary);
+            color: white;
+            border-left-color: var(--color-primary-light);
+        }
+
+        .theme-toggle {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: var(--bg-hover);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            background: var(--color-primary);
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: var(--bg-darker);
+            border-bottom: 1px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .greeting-section {
+            margin-bottom: 30px;
+        }
+
+        .greeting-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .greeting-subtitle {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: var(--color-primary);
+            transform: translateY(-4px);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+
+        .form-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .form-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-grid.full {
+            grid-template-columns: 1fr;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--color-primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-danger {
+            background: var(--color-danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-success {
+            background: var(--color-success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .filters-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .filter-input {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .meetings-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .meeting-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .meeting-card:hover {
+            border-color: var(--color-primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .meeting-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .meeting-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .meeting-date {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .meeting-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-kundengespräch {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .badge-vorqualifizierung {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .badge-upsell {
+            background: rgba(168, 85, 247, 0.2);
+            color: #a855f7;
+        }
+
+        .badge-internes {
+            background: rgba(148, 163, 184, 0.2);
+            color: #94a3b8;
+        }
+
+        .meeting-summary {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .meeting-summary.preview {
+            max-height: 2.8em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .meeting-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .meeting-expanded {
+            max-height: 1000px;
+        }
+
+        .expanded-content {
+            display: none;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .expanded-content.show {
+            display: block;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            margin-top: 12px;
+        }
+
+        .action-items-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .action-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px;
+            background: var(--bg-dark);
+            border-radius: 6px;
+        }
+
+        .action-item.completed {
+            opacity: 0.6;
+        }
+
+        .action-item-checkbox {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .action-item-text {
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .action-item.completed .action-item-text {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+
+        .recording-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--color-primary);
+            text-decoration: none;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .recording-link:hover {
+            text-decoration: underline;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow);
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 24px;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .form-group-full {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                padding: 15px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .theme-toggle {
+                position: static;
+                margin-top: 20px;
+            }
+
+            .filters-section {
+                flex-direction: column;
+            }
+
+            .filter-group {
+                width: 100%;
+            }
+
+            .filter-input {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-header">📊 Dashboard</div>
+            <div class="sidebar-nav">
+                <a href="index.html" class="nav-item">Dashboard</a>
+                <a href="bewerber.html" class="nav-item">Bewerber</a>
+                <a href="aufgaben.html" class="nav-item">Aufgaben</a>
+                <a href="meetings.html" class="nav-item active">Meetings</a>
+            </div>
+            <button class="theme-toggle" id="themeToggle">🌙 Dark Mode</button>
+        </div>
+
+        <div class="main-content">
+            <div class="header">
+                <div class="header-title">Meetings und Calls</div>
+            </div>
+
+            <div class="content">
+                <div class="greeting-section">
+                    <div class="greeting-title">Meetings Tracker</div>
+                    <div class="greeting-subtitle">Verwalte alle Meetings, Calls und wichtige Gespraeche</div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Diese Woche</div>
+                        <div class="stat-value" id="statsWeek">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Dieser Monat</div>
+                        <div class="stat-value" id="statsMonth">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Offene Action Items</div>
+                        <div class="stat-value" id="statsActions">0</div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-title">Neues Meeting erfassen</div>
+                    <form id="meetingForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Kunde</label>
+                                <input type="text" id="customerInput" class="form-input" placeholder="z.B. Caravan Daalmann GmbH" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Datum</label>
+                                <input type="date" id="dateInput" class="form-input" required>
+                            </div>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Meeting Typ</label>
+                                <select id="typeInput" class="form-select" required>
+                                    <option value="">Typ auswählen</option>
+                                    <option value="kundengespräch">Kundengespräch</option>
+                                    <option value="vorqualifizierung">Bewerber Vorqualifizierung</option>
+                                    <option value="upsell">Upsell Gespräch</option>
+                                    <option value="internes">Internes Meeting</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Recording Link (optional)</label>
+                                <input type="url" id="recordingInput" class="form-input" placeholder="https://teams.microsoft.com/...">
+                            </div>
+                        </div>
+
+                        <div class="form-group form-grid full">
+                            <label class="form-label">Zusammenfassung</label>
+                            <textarea id="summaryInput" class="form-textarea" placeholder="Kurze Zusammenfassung des Meetings..." required></textarea>
+                        </div>
+
+                        <div class="form-group form-grid full">
+                            <label class="form-label">Action Items</label>
+                            <textarea id="actionItemsInput" class="form-textarea" placeholder="Jede Zeile ein Action Item, z.B.&#10;Neue Kampagne anlegen&#10;Budget erhöhen&#10;Bericht schreiben"></textarea>
+                        </div>
+
+                        <div class="form-buttons">
+                            <button type="submit" class="btn btn-primary">Meeting erfassen</button>
+                            <button type="reset" class="btn btn-secondary">Zurücksetzen</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="filters-section">
+                    <div class="filter-group">
+                        <span class="filter-label">Suche:</span>
+                        <input type="text" id="searchInput" class="filter-input" placeholder="Kunde suchen...">
+                    </div>
+                    <div class="filter-group">
+                        <span class="filter-label">Typ:</span>
+                        <select id="filterType" class="filter-input">
+                            <option value="">Alle Typen</option>
+                            <option value="kundengespräch">Kundengespräch</option>
+                            <option value="vorqualifizierung">Bewerber Vorqualifizierung</option>
+                            <option value="upsell">Upsell Gespräch</option>
+                            <option value="internes">Internes Meeting</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="meetings-list" id="meetingsList">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <div>Noch keine Meetings erfasst</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>Meeting bearbeiten</div>
+                <button class="modal-close" id="closeEditModal">&times;</button>
+            </div>
+            <form id="editForm">
+                <div class="form-group">
+                    <label class="form-label">Kunde</label>
+                    <input type="text" id="editCustomer" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Datum</label>
+                    <input type="date" id="editDate" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Meeting Typ</label>
+                    <select id="editType" class="form-select" required>
+                        <option value="kundengespräch">Kundengespräch</option>
+                        <option value="vorqualifizierung">Bewerber Vorqualifizierung</option>
+                        <option value="upsell">Upsell Gespräch</option>
+                        <option value="internes">Internes Meeting</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Recording Link (optional)</label>
+                    <input type="url" id="editRecording" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Zusammenfassung</label>
+                    <textarea id="editSummary" class="form-textarea" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Action Items</label>
+                    <textarea id="editActionItems" class="form-textarea" placeholder="Jede Zeile ein Action Item"></textarea>
+                </div>
+                <div class="form-buttons" style="margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                    <button type="button" class="btn btn-secondary" id="cancelEdit">Abbrechen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // UUID Generator
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Get today's date in YYYY-MM-DD format
+        function getTodayDate() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // Initialize form date to today
+        document.getElementById('dateInput').valueAsDate = new Date();
+
+        // Load data from localStorage
+        function loadMeetings() {
+            const data = localStorage.getItem('fulfillmentMeetings');
+            return data ? JSON.parse(data) : [];
+        }
+
+        // Save data to localStorage
+        function saveMeetings(meetings) {
+            localStorage.setItem('fulfillmentMeetings', JSON.stringify(meetings));
+        }
+
+        // Get type badge configuration
+        function getTypeBadge(type) {
+            const badges = {
+                'kundengespräch': { label: 'Kundengespräch', class: 'badge-kundengespräch' },
+                'vorqualifizierung': { label: 'Bewerber Vorqualifizierung', class: 'badge-vorqualifizierung' },
+                'upsell': { label: 'Upsell Gespräch', class: 'badge-upsell' },
+                'internes': { label: 'Internes Meeting', class: 'badge-internes' }
+            };
+            return badges[type] || { label: type, class: 'badge-internes' };
+        }
+
+        // Format date for display
+        function formatDate(dateString) {
+            const date = new Date(dateString + 'T00:00:00');
+            return date.toLocaleDateString('de-DE', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+        }
+
+        // Get week number
+        function getWeekNumber(date) {
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        }
+
+        // Get start of current week
+        function getWeekStart() {
+            const now = new Date();
+            const dayOfWeek = now.getDay();
+            const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+            const weekStart = new Date(now.setDate(diff));
+            return weekStart.toISOString().split('T')[0];
+        }
+
+        // Get start of current month
+        function getMonthStart() {
+            const now = new Date();
+            return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        }
+
+        // Update statistics
+        function updateStats() {
+            const meetings = loadMeetings();
+            const weekStart = getWeekStart();
+            const monthStart = getMonthStart();
+
+            const thisWeek = meetings.filter(m => m.date >= weekStart).length;
+            const thisMonth = meetings.filter(m => m.date >= monthStart).length;
+
+            let openActions = 0;
+            meetings.forEach(m => {
+                if (m.actionItems && Array.isArray(m.actionItems)) {
+                    openActions += m.actionItems.filter(ai => !ai.completed).length;
+                }
+            });
+
+            document.getElementById('statsWeek').textContent = thisWeek;
+            document.getElementById('statsMonth').textContent = thisMonth;
+            document.getElementById('statsActions').textContent = openActions;
+        }
+
+        // Render meetings list
+        function renderMeetings() {
+            const meetings = loadMeetings();
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filterType = document.getElementById('filterType').value;
+
+            let filtered = meetings.filter(m => {
+                const matchesSearch = m.customer.toLowerCase().includes(searchTerm);
+                const matchesType = !filterType || m.type === filterType;
+                return matchesSearch && matchesType;
+            });
+
+            // Sort by date descending
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const container = document.getElementById('meetingsList');
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <div>${searchTerm || filterType ? 'Keine Meetings gefunden' : 'Noch keine Meetings erfasst'}</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(meeting => {
+                const typeBadge = getTypeBadge(meeting.type);
+                const summary = meeting.summary || '';
+                const actionCount = (meeting.actionItems || []).length;
+                const openActionCount = (meeting.actionItems || []).filter(ai => !ai.completed).length;
+
+                return `
+                    <div class="meeting-card" data-id="${meeting.id}">
+                        <div class="meeting-header">
+                            <div>
+                                <div class="meeting-title">${meeting.customer}</div>
+                                <div class="meeting-date">${formatDate(meeting.date)}</div>
+                            </div>
+                        </div>
+                        <div class="meeting-info">
+                            <span class="badge ${typeBadge.class}">${typeBadge.label}</span>
+                            ${actionCount > 0 ? `<span style="font-size: 12px; color: var(--text-muted);">${openActionCount}/${actionCount} Action Items</span>` : ''}
+                        </div>
+                        <div class="meeting-summary preview">${summary}</div>
+                        <div class="expanded-content" id="expanded-${meeting.id}">
+                            <div class="section-title">Zusammenfassung</div>
+                            <div class="meeting-summary">${summary}</div>
+                            ${meeting.recordingLink ? `
+                                <a href="${meeting.recordingLink}" target="_blank" class="recording-link">
+                                    🎥 Recording anschauen
+                                </a>
+                            ` : ''}
+                            ${actionCount > 0 ? `
+                                <div class="section-title">Action Items</div>
+                                <div class="action-items-list">
+                                    ${meeting.actionItems.map((item, idx) => `
+                                        <div class="action-item ${item.completed ? 'completed' : ''}">
+                                            <input type="checkbox" class="action-item-checkbox"
+                                                ${item.completed ? 'checked' : ''}
+                                                data-id="${meeting.id}" data-index="${idx}"
+                                                onchange="toggleActionItem('${meeting.id}', ${idx})">
+                                            <div class="action-item-text">${item.text}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="meeting-actions" style="margin-top: 12px;">
+                            <button class="btn btn-sm btn-secondary" onclick="toggleExpand('${meeting.id}')">Details</button>
+                            <button class="btn btn-sm btn-secondary" onclick="editMeeting('${meeting.id}')">Bearbeiten</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteMeeting('${meeting.id}')">Löschen</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Toggle expand/collapse
+        function toggleExpand(id) {
+            const expanded = document.getElementById(`expanded-${id}`);
+            expanded.classList.toggle('show');
+            const card = document.querySelector(`[data-id="${id}"]`);
+            card.classList.toggle('meeting-expanded');
+        }
+
+        // Toggle action item completion
+        function toggleActionItem(id, index) {
+            const meetings = loadMeetings();
+            const meeting = meetings.find(m => m.id === id);
+            if (meeting && meeting.actionItems) {
+                meeting.actionItems[index].completed = !meeting.actionItems[index].completed;
+                saveMeetings(meetings);
+                updateStats();
+                renderMeetings();
+            }
+        }
+
+        // Edit meeting
+        let editingId = null;
+        function editMeeting(id) {
+            const meetings = loadMeetings();
+            const meeting = meetings.find(m => m.id === id);
+            if (!meeting) return;
+
+            editingId = id;
+            document.getElementById('editCustomer').value = meeting.customer;
+            document.getElementById('editDate').value = meeting.date;
+            document.getElementById('editType').value = meeting.type;
+            document.getElementById('editRecording').value = meeting.recordingLink || '';
+            document.getElementById('editSummary').value = meeting.summary;
+            document.getElementById('editActionItems').value = meeting.actionItems
+                ? meeting.actionItems.map(a => a.text).join('\n')
+                : '';
+
+            document.getElementById('editModal').classList.add('show');
+        }
+
+        // Delete meeting
+        function deleteMeeting(id) {
+            if (!confirm('Möchtest du dieses Meeting wirklich löschen?')) return;
+
+            let meetings = loadMeetings();
+            meetings = meetings.filter(m => m.id !== id);
+            saveMeetings(meetings);
+            updateStats();
+            renderMeetings();
+        }
+
+        // Form submission
+        document.getElementById('meetingForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const meetings = loadMeetings();
+            const actionItemsText = document.getElementById('actionItemsInput').value;
+            const actionItems = actionItemsText
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line)
+                .map(text => ({ text, completed: false }));
+
+            const newMeeting = {
+                id: generateUUID(),
+                customer: document.getElementById('customerInput').value,
+                date: document.getElementById('dateInput').value,
+                type: document.getElementById('typeInput').value,
+                summary: document.getElementById('summaryInput').value,
+                actionItems: actionItems,
+                recordingLink: document.getElementById('recordingInput').value || null,
+                createdAt: new Date().toISOString()
+            };
+
+            meetings.push(newMeeting);
+            saveMeetings(meetings);
+            updateStats();
+            renderMeetings();
+
+            this.reset();
+            document.getElementById('dateInput').valueAsDate = new Date();
+        });
+
+        // Edit form submission
+        document.getElementById('editForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const meetings = loadMeetings();
+            const meeting = meetings.find(m => m.id === editingId);
+            if (!meeting) return;
+
+            const actionItemsText = document.getElementById('editActionItems').value;
+            const actionItems = actionItemsText
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line)
+                .map(text => {
+                    const existing = meeting.actionItems.find(a => a.text === text);
+                    return { text, completed: existing ? existing.completed : false };
+                });
+
+            meeting.customer = document.getElementById('editCustomer').value;
+            meeting.date = document.getElementById('editDate').value;
+            meeting.type = document.getElementById('editType').value;
+            meeting.summary = document.getElementById('editSummary').value;
+            meeting.actionItems = actionItems;
+            meeting.recordingLink = document.getElementById('editRecording').value || null;
+
+            saveMeetings(meetings);
+            updateStats();
+            renderMeetings();
+            document.getElementById('editModal').classList.remove('show');
+        });
+
+        // Close edit modal
+        document.getElementById('closeEditModal').addEventListener('click', function() {
+            document.getElementById('editModal').classList.remove('show');
+        });
+
+        document.getElementById('cancelEdit').addEventListener('click', function() {
+            document.getElementById('editModal').classList.remove('show');
+        });
+
+        // Search and filter
+        document.getElementById('searchInput').addEventListener('input', renderMeetings);
+        document.getElementById('filterType').addEventListener('change', renderMeetings);
+
+        // Theme toggle
+        document.getElementById('themeToggle').addEventListener('click', function() {
+            document.body.classList.toggle('light-mode');
+            const isDark = !document.body.classList.contains('light-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeButton();
+        });
+
+        function updateThemeButton() {
+            const isDark = !document.body.classList.contains('light-mode');
+            document.getElementById('themeToggle').textContent = isDark ? '🌙 Dark Mode' : '☀️ Light Mode';
+        }
+
+        // Load theme from localStorage
+        function loadTheme() {
+            const theme = localStorage.getItem('theme');
+            if (theme === 'light') {
+                document.body.classList.add('light-mode');
+            }
+            updateThemeButton();
+        }
+
+        // Initialize
+        loadTheme();
+        updateStats();
+        renderMeetings();
+    </script>
+</body>
+</html>
