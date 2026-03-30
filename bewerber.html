@@ -1615,7 +1615,10 @@
                 if (custA > custB) return 1;
                 return a.localeCompare(b);
             });
-            const healthRows = sortedClients.map(funnel => {
+            const healthRows = sortedClients.filter(funnel => {
+                const status = campaignStatuses[funnel];
+                return !status || status === 'active';
+            }).map(funnel => {
                 const customer = data.customerMap[funnel] || funnel;
                 const monthData = getFilteredValue(data.thisMonth, funnel);
                 const weekData = getFilteredValue(data.thisWeek, funnel);
