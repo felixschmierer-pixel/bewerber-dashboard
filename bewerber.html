@@ -1465,9 +1465,7 @@
             const monthNames = ['Januar', 'Februar', 'M\u00e4rz', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
             const currentMonthName = monthNames[new Date().getMonth()];
             const prevMonthCampaigns = getBestCampaignsPrevMonth(5);
-            const prevMonthName = (dashboardData.monthlyBreakdown && dashboardData.monthlyBreakdown.length >= 2)
-                ? dashboardData.monthlyBreakdown[dashboardData.monthlyBreakdown.length - 2].label
-                : monthNames[(new Date().getMonth() + 11) % 12];
+            const prevMonthName = monthNames[(new Date().getMonth() + 11) % 12];
 
             const renderRankingCard = (title, campaigns) => {
                 if (campaigns.length === 0) return '';
@@ -1641,6 +1639,7 @@
                 return a.localeCompare(b);
             });
             const healthRows = sortedClients.filter(funnel => {
+                if (isInternalCampaign(funnel)) return false;
                 const status = campaignStatuses[funnel];
                 return !status || status === 'active';
             }).map(funnel => {
@@ -1884,11 +1883,12 @@
             const changePct = prevTotal > 0 ? (((monthTotal - prevTotal) / prevTotal) * 100).toFixed(0) : 0;
 
             const monthOptions = breakdown.map((m, i) =>
-                `<option value="${i}" ${i === selectedMonthIdx ? 'selected' : ''}>${m.label}</option>`
+                `<option value="${i}" ${i === selectedMonthIdx ? 'selected' : ''}>${formatMonthLabel(m.label)}</option>`
             ).join('');
 
             const rows = Object.entries(monthData)
                 .filter(([key]) => {
+                    if (isInternalCampaign(key)) return false;
                     if (!currentClient) return true;
                     return (dashboardData.customerMap[key] || key) === currentClient;
                 })
@@ -1909,7 +1909,7 @@
                         style="padding: 10px 16px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 15px; cursor: pointer;">
                         ${monthOptions}
                     </select>
-                    ${prevMonth ? `<span style="font-size: 13px; color: ${parseInt(changePct) >= 0 ? 'var(--color-success)' : 'var(--color-danger)'};">${parseInt(changePct) >= 0 ? '↑' : '↓'} ${Math.abs(changePct)}% vs. ${prevMonth.label}</span>` : ''}
+                    ${prevMonth ? `<span style="font-size: 13px; color: ${parseInt(changePct) >= 0 ? 'var(--color-success)' : 'var(--color-danger)'};">${parseInt(changePct) >= 0 ? '↑' : '↓'} ${Math.abs(changePct)}% vs. ${formatMonthLabel(prevMonth.label)}</span>` : ''}
                 </div>
                 <div class="kpi-grid">
                     <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.1));">
@@ -1917,11 +1917,11 @@
                         <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${totalApplicants}</div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-label">Bewerber ${currentMonth.label || 'Monat'}</div>
+                        <div class="kpi-label">Bewerber ${formatMonthLabel(currentMonth.label) || 'Monat'}</div>
                         <div class="kpi-value">${filteredTotal}</div>
                     </div>
                     ${prevMonth ? `<div class="kpi-card">
-                        <div class="kpi-label">Bewerber ${prevMonth.label}</div>
+                        <div class="kpi-label">Bewerber ${formatMonthLabel(prevMonth.label)}</div>
                         <div class="kpi-value">${prevTotal}</div>
                     </div>` : ''}
                     <div class="kpi-card">
@@ -1936,8 +1936,8 @@
                             <tr>
                                 <th>Kampagne</th>
                                 <th>Insgesamt</th>
-                                <th>${currentMonth.label || 'Monat'}</th>
-                                ${prevMonth ? `<th>${prevMonth.label}</th><th>Differenz</th>` : ''}
+                                <th>${formatMonthLabel(currentMonth.label) || 'Monat'}</th>
+                                ${prevMonth ? `<th>${formatMonthLabel(prevMonth.label)}</th><th>Differenz</th>` : ''}
                                 <th>Anteil</th>
                             </tr>
                         </thead>
@@ -1980,7 +1980,7 @@
                 const ctx = document.getElementById('monthlyChart');
                 if (charts.monthly) charts.monthly.destroy();
 
-                const labels = breakdown.map(m => m.label);
+                const labels = breakdown.map(m => formatMonthLabel(m.label));
                 const totals = breakdown.map(m => m.total);
 
                 charts.monthly = new Chart(ctx, {
@@ -2407,7 +2407,7 @@
             filteredBreakdown.forEach(month => {
                 let total = 0;
                 funnels.forEach(f => { total += (month.data || {})[f] || 0; });
-                monthlyChartData.push({ label: month.label, total });
+                monthlyChartData.push({ label: formatMonthLabel(month.label), total });
             });
 
             // Pro Kampagne monatliche Daten fuer Stacked Chart
@@ -2441,8 +2441,8 @@
             }
 
             // Zeitraum Optionen
-            const monthOptions = breakdown.map((m, i) => `<option value="${i}" ${i === fromIdx ? 'selected' : ''}>${m.label}</option>`).join('');
-            const monthOptionsTo = breakdown.map((m, i) => `<option value="${i}" ${i === toIdx ? 'selected' : ''}>${m.label}</option>`).join('');
+            const monthOptions = breakdown.map((m, i) => `<option value="${i}" ${i === fromIdx ? 'selected' : ''}>${formatMonthLabel(m.label)}</option>`).join('');
+            const monthOptionsTo = breakdown.map((m, i) => `<option value="${i}" ${i === toIdx ? 'selected' : ''}>${formatMonthLabel(m.label)}</option>`).join('');
 
             // Funnel Filter Optionen
             const funnelOptions = `<option value="">Alle Kampagnen (${allFunnels.length})</option>` +
@@ -2603,7 +2603,7 @@
                                 <th style="min-width: 180px;">Kampagne</th>
                                 <th>Status</th>
                                 <th>Insgesamt</th>
-                                ${filteredBreakdown.map(m => `<th>${m.label}</th>`).join('')}
+                                ${filteredBreakdown.map(m => `<th>${formatMonthLabel(m.label)}</th>`).join('')}
                                 <th>&#216;/Monat</th>
                                 <th>Trend</th>
                                 <th>Online seit</th>
@@ -2737,7 +2737,7 @@
                 charts.customerMonthly = new Chart(stackedCtx, {
                     type: 'bar',
                     data: {
-                        labels: filteredBreakdown.map(m => m.label),
+                        labels: filteredBreakdown.map(m => formatMonthLabel(m.label)),
                         datasets: funnels.length > 1 ? stackedDatasets : [{
                             label: 'Bewerbungen',
                             data: monthlyChartData.map(d => d.total),
@@ -2771,7 +2771,7 @@
                 charts.customerLine = new Chart(lineCtx, {
                     type: 'line',
                     data: {
-                        labels: filteredBreakdown.map(m => m.label),
+                        labels: filteredBreakdown.map(m => formatMonthLabel(m.label)),
                         datasets: [{
                             label: 'Pro Monat',
                             data: monthlyChartData.map(d => d.total),
@@ -2932,6 +2932,32 @@
             return calculateAlerts().length;
         }
 
+        function formatMonthLabel(label) {
+            if (!label) return '';
+            const monthNamesDE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+            // Falls bereits formatiert (z.B. "März 2026" oder "Mär 26")
+            if (monthNamesDE.some(m => label.startsWith(m))) return label;
+            // Rohe Date Strings parsen (z.B. "Sun Mar 01 2026 00:00:00 GMT+0100...")
+            const d = new Date(label);
+            if (!isNaN(d.getTime())) {
+                return monthNamesDE[d.getMonth()] + ' ' + d.getFullYear();
+            }
+            // Kurzformat wie "2026-03" oder "Mar 2026"
+            const shortMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            for (let i = 0; i < shortMonths.length; i++) {
+                if (label.includes(shortMonths[i])) {
+                    const yearMatch = label.match(/\d{4}/);
+                    return monthNamesDE[i] + (yearMatch ? ' ' + yearMatch[0] : '');
+                }
+            }
+            return label;
+        }
+
+        function isInternalCampaign(funnel) {
+            const lower = funnel.toLowerCase();
+            return lower.startsWith('redline');
+        }
+
         function getBestCampaigns(limit) {
             limit = limit || 5;
             const monthData = getMonthData();
@@ -2941,6 +2967,7 @@
 
             return Object.entries(checkData)
                 .filter(([funnel, count]) => {
+                    if (isInternalCampaign(funnel)) return false;
                     if (!currentClient) return true;
                     const customer = customerMap[funnel] || funnel;
                     return customer === currentClient || funnel === currentClient;
@@ -2959,6 +2986,7 @@
 
             return Object.entries(prevMonthData)
                 .filter(([funnel, count]) => {
+                    if (isInternalCampaign(funnel)) return false;
                     if (!currentClient) return true;
                     const customer = customerMap[funnel] || funnel;
                     return customer === currentClient || funnel === currentClient;
@@ -2996,7 +3024,7 @@
                     <div style="margin-bottom: 16px;">
                         <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Monat</label>
                         <select id="manualMonth" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px;">
-                            ${(dashboardData.monthlyBreakdown || []).map((m, i) => `<option value="${i}" ${i === (dashboardData.monthlyBreakdown || []).length - 1 ? 'selected' : ''}>${m.label}</option>`).join('')}
+                            ${(dashboardData.monthlyBreakdown || []).map((m, i) => `<option value="${i}" ${i === (dashboardData.monthlyBreakdown || []).length - 1 ? 'selected' : ''}>${formatMonthLabel(m.label)}</option>`).join('')}
                         </select>
                     </div>
                     <div style="display: flex; gap: 8px; justify-content: flex-end;">
@@ -3029,7 +3057,7 @@
             }
             list.innerHTML = entries.map(([key, val]) => {
                 const [funnel, monthIdx] = key.split('|||');
-                const monthLabel = (dashboardData.monthlyBreakdown || [])[parseInt(monthIdx)]?.label || monthIdx;
+                const monthLabel = formatMonthLabel((dashboardData.monthlyBreakdown || [])[parseInt(monthIdx)]?.label || monthIdx);
                 return `<div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid var(--border-color);">
                     <span>${funnel} (${monthLabel})</span>
                     <span style="display: flex; align-items: center; gap: 6px;"><strong>+${val}</strong>
