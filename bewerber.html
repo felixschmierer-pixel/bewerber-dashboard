@@ -1129,6 +1129,10 @@
         let customerProfiles = {};
         let healthFilter = 'all';
         let selectedDetailCustomer = '';
+        let selectedDetailFunnel = '';
+        let customerDetailMonthFrom = -1;
+        let customerDetailMonthTo = -1;
+        let manualApplicants = {};
 
         const TABS = [
             { id: 'overview', label: 'Übersicht' },
@@ -1226,6 +1230,9 @@
 
             const profiles = localStorage.getItem('customerProfiles');
             if (profiles) customerProfiles = JSON.parse(profiles);
+
+            const manual = localStorage.getItem('manualApplicants');
+            if (manual) manualApplicants = JSON.parse(manual);
         }
 
         function saveLocalStorage() {
@@ -1233,6 +1240,7 @@
             localStorage.setItem('dismissedAlerts', JSON.stringify(dismissedAlerts));
             localStorage.setItem('costSettings', JSON.stringify(costSettings));
             localStorage.setItem('customerProfiles', JSON.stringify(customerProfiles));
+            localStorage.setItem('manualApplicants', JSON.stringify(manualApplicants));
         }
 
         function initTheme() {
@@ -1295,6 +1303,7 @@
                 .then(r => r.json())
                 .then(data => {
                     dashboardData = fixUmlauts(data);
+                    applyManualApplicants();
                     updateClientFilter();
                     const content = document.getElementById('contentArea');
                     const scrollPos = content ? content.scrollTop : 0;
@@ -1382,7 +1391,7 @@
             else if (tabId === 'today') renderDayTab(content, 'today');
             else if (tabId === 'yesterday') renderDayTab(content, 'yesterday');
             else if (tabId === 'week') renderPeriodTab(content, 'thisWeek', 'Woche');
-            else if (tabId === 'month') renderPeriodTab(content, 'thisMonth', 'Monat');
+            else if (tabId === 'month') renderMonthDetailTab(content);
             else if (tabId === 'monthly') renderMonthlyTab(content);
             else if (tabId === 'campaigns') renderCampaignsTab(content);
             else if (tabId === 'costs') renderCostsTab(content);
@@ -1399,7 +1408,10 @@
                     <div id="healthFilterButtons" style="display: flex; gap: 6px;"></div>
                 </div>
                 <div class="table-container" id="healthTable"></div>
-                <div class="section-title">Aktuelle Bewerber</div>
+                <div class="section-title" style="display: flex; align-items: center; justify-content: space-between;">
+                    <span>Aktuelle Bewerber</span>
+                    <button onclick="showManualEntryDialog()" style="padding: 6px 14px; border-radius: 8px; border: 1px solid var(--color-primary); background: transparent; color: var(--color-primary-light); cursor: pointer; font-size: 12px; font-weight: 600;">+ Manuell nachtragen</button>
+                </div>
                 <div class="recent-applicants" id="recentApplicants"></div>
             `;
             container.innerHTML = html;
@@ -1437,7 +1449,10 @@
             const change24h = yesterdayTotal > 0 ? (((todayTotal - yesterdayTotal) / yesterdayTotal) * 100).toFixed(0) : 0;
             const changeWeek = weekTotal > 0 ? (((todayTotal - (weekTotal / 7)) / (weekTotal / 7)) * 100).toFixed(0) : 0;
 
+            const totalApplicants = getTotalApplicants();
+
             const kpiData = [
+                { label: 'Bewerber insgesamt', value: totalApplicants, change: 0, changeType: '', highlight: true },
                 { label: 'Heute', value: todayTotal, change: change24h, changeType: 'vs gestern' },
                 { label: 'Gestern', value: yesterdayTotal, change: changeWeek, changeType: 'vs Durchschnitt' },
                 { label: 'Woche', value: weekTotal, change: 0, changeType: '' },
@@ -1447,12 +1462,19 @@
                 { label: 'Alarme', value: alertsCount, change: 0, changeType: '' }
             ];
 
-            let rankingHtml = '';
-            if (bestCampaigns.length > 0) {
-                rankingHtml = '<div class="kpi-card" style="grid-column: span 2;">' +
-                    '<div class="kpi-label">Beste Kampagnen (Monat)</div>' +
+            const monthNames = ['Januar', 'Februar', 'M\u00e4rz', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+            const currentMonthName = monthNames[new Date().getMonth()];
+            const prevMonthCampaigns = getBestCampaignsPrevMonth(5);
+            const prevMonthName = (dashboardData.monthlyBreakdown && dashboardData.monthlyBreakdown.length >= 2)
+                ? dashboardData.monthlyBreakdown[dashboardData.monthlyBreakdown.length - 2].label
+                : monthNames[(new Date().getMonth() + 11) % 12];
+
+            const renderRankingCard = (title, campaigns) => {
+                if (campaigns.length === 0) return '';
+                return '<div class="kpi-card">' +
+                    `<div class="kpi-label">${title}</div>` +
                     '<div style="margin-top: 8px;">' +
-                    bestCampaigns.map(c =>
+                    campaigns.map(c =>
                         `<div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px;">` +
                         `<span style="color: var(--text-muted);">${c.rank}.</span> ` +
                         `<span style="flex: 1; margin-left: 6px; font-weight: ${c.rank <= 3 ? '600' : '400'};">${c.name}</span>` +
@@ -1460,12 +1482,15 @@
                         `</div>`
                     ).join('') +
                     '</div></div>';
-            }
+            };
+
+            let rankingHtml = renderRankingCard(`Beste Kampagnen (${currentMonthName})`, bestCampaigns)
+                + renderRankingCard(`Beste Kampagnen (${prevMonthName})`, prevMonthCampaigns);
 
             kpis.innerHTML = kpiData.map(kpi => `
-                <div class="kpi-card">
+                <div class="kpi-card" ${kpi.highlight ? 'style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.1));"' : ''}>
                     <div class="kpi-label">${kpi.label}</div>
-                    <div class="kpi-value">${kpi.value}</div>
+                    <div class="kpi-value" ${kpi.highlight ? 'style="color: var(--color-primary-light); font-size: 32px;"' : ''}>${kpi.value}</div>
                     ${kpi.change !== 0 ? `
                         <div class="kpi-change ${parseInt(kpi.change) >= 0 ? 'positive' : 'negative'}">
                             <span class="trend-arrow ${parseInt(kpi.change) > 0 ? 'up' : parseInt(kpi.change) < 0 ? 'down' : 'stable'}">
@@ -1630,10 +1655,16 @@
                 if (daysSince > 10) healthStatus = 'danger';
                 else if (daysSince >= 5) healthStatus = 'warning';
 
-                const trend = monthData > weekData ? 'up' : monthData < weekData ? 'down' : 'stable';
+                const dayOfMonth = new Date().getDate();
+                const weeksInMonth = Math.max(1, dayOfMonth / 7);
+                const avgWeekly = monthData / weeksInMonth;
+                const trend = weekData > avgWeekly * 1.1 ? 'up' : weekData < avgWeekly * 0.7 ? 'down' : 'stable';
+
+                let totalAll = 0;
+                (data.monthlyBreakdown || []).forEach(m => { totalAll += (m.data || {})[funnel] || 0; });
 
                 return {
-                    funnel, customer, monthData, weekData, lastApp: lastApp ? lastApp.date : '.', daysSince, healthStatus, trend
+                    funnel, customer, monthData, weekData, totalAll, lastApp: lastApp ? lastApp.date : '.', daysSince, healthStatus, trend
                 };
             }).sort((a, b) => b.monthData - a.monthData).slice(0, limit);
 
@@ -1648,6 +1679,7 @@
                             <th>Kunde</th>
                             <th>Position</th>
                             <th>Gesundheit</th>
+                            <th>Insgesamt</th>
                             <th>Diese Woche</th>
                             <th>Dieser Monat</th>
                             <th>Trend</th>
@@ -1655,7 +1687,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${filtered.length === 0 ? '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-muted);">Keine Kampagnen mit diesem Status</td></tr>' : ''}
+                        ${filtered.length === 0 ? '<tr><td colspan="8" style="text-align: center; padding: 20px; color: var(--text-muted);">Keine Kampagnen mit diesem Status</td></tr>' : ''}
                         ${filtered.map(row => `
                             <tr class="${campaignStatuses[row.funnel] === 'paused' ? 'paused' : campaignStatuses[row.funnel] === 'filled' ? 'filled' : ''}">
                                 <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${row.customer.replace(/'/g, "\\'")}')" style="color: var(--color-primary-light); text-decoration: none; cursor: pointer;">${row.customer}</a></td>
@@ -1666,6 +1698,7 @@
                                         ${row.healthStatus === 'good' ? 'Gut' : row.healthStatus === 'warning' ? 'Warnung' : 'Kritisch'}
                                     </div>
                                 </td>
+                                <td style="font-weight: 700; color: var(--color-primary-light);">${row.totalAll}</td>
                                 <td>${row.weekData}</td>
                                 <td><strong>${row.monthData}</strong></td>
                                 <td>
@@ -1697,7 +1730,15 @@
                 return;
             }
 
-            container.innerHTML = filtered.map(app => `
+            container.innerHTML = filtered.map(app => {
+                let dateDisplay = app.date || '';
+                let timeDisplay = '';
+                if (dateDisplay.includes(' ')) {
+                    const parts = dateDisplay.split(' ');
+                    dateDisplay = parts[0];
+                    timeDisplay = parts[1] ? parts[1].substring(0, 5) + ' Uhr' : '';
+                }
+                return `
                 <div class="applicant-item">
                     <div class="applicant-info">
                         <div class="applicant-name">${app.name}</div>
@@ -1707,19 +1748,28 @@
                             <span>${app.client}</span>
                         </div>
                     </div>
-                    <div class="applicant-date">${app.date}</div>
+                    <div class="applicant-date" style="text-align: right;">
+                        <div>${dateDisplay}</div>
+                        ${timeDisplay ? `<div style="font-size: 11px; color: var(--text-muted);">${timeDisplay}</div>` : ''}
+                    </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function renderDayTab(container, dayKey) {
             const data = dashboardData[dayKey] || {};
             const total = currentClient ? getFilteredValue(data) : (getFilteredValue(data) || dashboardData[dayKey + 'Total'] || 0);
+            const totalApplicants = getTotalApplicants();
 
             let html = `
                 <div class="kpi-grid">
+                    <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.1));">
+                        <div class="kpi-label">Bewerber insgesamt</div>
+                        <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${totalApplicants}</div>
+                    </div>
                     <div class="kpi-card">
-                        <div class="kpi-label">Bewerber gesamt</div>
+                        <div class="kpi-label">Bewerber ${dayKey === 'today' ? 'heute' : 'gestern'}</div>
                         <div class="kpi-value">${total}</div>
                     </div>
                 </div>
@@ -1767,9 +1817,14 @@
             const data = periodKey === 'thisMonth' ? getMonthData() : (dashboardData[periodKey] || {});
             const totalKey = periodKey === 'thisWeek' ? 'weekTotal' : 'monthTotal';
             const total = currentClient ? getFilteredValue(data) : (getFilteredValue(data) || dashboardData[totalKey] || 0);
+            const totalApplicants = getTotalApplicants();
 
             let html = `
                 <div class="kpi-grid">
+                    <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.1));">
+                        <div class="kpi-label">Bewerber insgesamt</div>
+                        <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${totalApplicants}</div>
+                    </div>
                     <div class="kpi-card">
                         <div class="kpi-label">Bewerber ${label.toLowerCase()}</div>
                         <div class="kpi-value">${total}</div>
@@ -1815,10 +1870,105 @@
             container.innerHTML = html;
         }
 
-        function renderMonthlyTab(container) {
+        let selectedMonthIdx = -1;
+
+        function renderMonthDetailTab(container) {
             const breakdown = dashboardData.monthlyBreakdown || [];
+            if (selectedMonthIdx === -1) selectedMonthIdx = breakdown.length - 1;
+            const totalApplicants = getTotalApplicants();
+            const currentMonth = breakdown[selectedMonthIdx] || {};
+            const prevMonth = breakdown[selectedMonthIdx - 1] || null;
+            const monthData = currentMonth.data || {};
+            const monthTotal = currentMonth.total || Object.values(monthData).reduce((a, b) => a + b, 0);
+            const prevTotal = prevMonth ? (prevMonth.total || Object.values(prevMonth.data || {}).reduce((a, b) => a + b, 0)) : 0;
+            const changePct = prevTotal > 0 ? (((monthTotal - prevTotal) / prevTotal) * 100).toFixed(0) : 0;
+
+            const monthOptions = breakdown.map((m, i) =>
+                `<option value="${i}" ${i === selectedMonthIdx ? 'selected' : ''}>${m.label}</option>`
+            ).join('');
+
+            const rows = Object.entries(monthData)
+                .filter(([key]) => {
+                    if (!currentClient) return true;
+                    return (dashboardData.customerMap[key] || key) === currentClient;
+                })
+                .map(([funnel, count]) => {
+                    const prevCount = prevMonth ? ((prevMonth.data || {})[funnel] || 0) : 0;
+                    const diff = count - prevCount;
+                    let totalAll = 0;
+                    breakdown.forEach(m => { totalAll += (m.data || {})[funnel] || 0; });
+                    return { funnel, count, prevCount, diff, totalAll };
+                })
+                .sort((a, b) => b.count - a.count);
+
+            const filteredTotal = rows.reduce((s, r) => s + r.count, 0);
 
             container.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <select onchange="selectedMonthIdx = parseInt(this.value); renderMonthDetailTab(document.getElementById('contentArea'));"
+                        style="padding: 10px 16px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 15px; cursor: pointer;">
+                        ${monthOptions}
+                    </select>
+                    ${prevMonth ? `<span style="font-size: 13px; color: ${parseInt(changePct) >= 0 ? 'var(--color-success)' : 'var(--color-danger)'};">${parseInt(changePct) >= 0 ? '↑' : '↓'} ${Math.abs(changePct)}% vs. ${prevMonth.label}</span>` : ''}
+                </div>
+                <div class="kpi-grid">
+                    <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.1));">
+                        <div class="kpi-label">Bewerber insgesamt</div>
+                        <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${totalApplicants}</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Bewerber ${currentMonth.label || 'Monat'}</div>
+                        <div class="kpi-value">${filteredTotal}</div>
+                    </div>
+                    ${prevMonth ? `<div class="kpi-card">
+                        <div class="kpi-label">Bewerber ${prevMonth.label}</div>
+                        <div class="kpi-value">${prevTotal}</div>
+                    </div>` : ''}
+                    <div class="kpi-card">
+                        <div class="kpi-label">Aktive Kampagnen</div>
+                        <div class="kpi-value">${rows.filter(r => r.count > 0).length}</div>
+                    </div>
+                </div>
+                <div class="section-title">Nach Kampagne</div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Kampagne</th>
+                                <th>Insgesamt</th>
+                                <th>${currentMonth.label || 'Monat'}</th>
+                                ${prevMonth ? `<th>${prevMonth.label}</th><th>Differenz</th>` : ''}
+                                <th>Anteil</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map(r => {
+                                const pct = filteredTotal > 0 ? ((r.count / filteredTotal) * 100).toFixed(1) : 0;
+                                return `<tr>
+                                    <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${(dashboardData.customerMap[r.funnel] || r.funnel).replace(/'/g, "\\'")}')" style="color: var(--color-primary-light); text-decoration: none;">${dashboardData.customerMap[r.funnel] || r.funnel}</a></td>
+                                    <td style="font-weight: 700; color: var(--color-primary-light);">${r.totalAll}</td>
+                                    <td><strong>${r.count}</strong></td>
+                                    ${prevMonth ? `<td>${r.prevCount}</td><td style="color: ${r.diff > 0 ? 'var(--color-success)' : r.diff < 0 ? 'var(--color-danger)' : 'var(--text-muted)'};">${r.diff > 0 ? '+' : ''}${r.diff}</td>` : ''}
+                                    <td>${pct}%</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderMonthlyTab(container) {
+            const breakdown = dashboardData.monthlyBreakdown || [];
+            const totalApplicants = getTotalApplicants();
+
+            container.innerHTML = `
+                <div class="kpi-grid">
+                    <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.1));">
+                        <div class="kpi-label">Bewerber insgesamt</div>
+                        <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${totalApplicants}</div>
+                    </div>
+                </div>
                 <div class="chart-container">
                     <canvas id="monthlyChart"></canvas>
                 </div>
@@ -1871,8 +2021,15 @@
             const pausedCampaigns = dashboardData.clients.filter(c => campaignStatuses[c] === 'paused').length;
             const filledCampaigns = dashboardData.clients.filter(c => campaignStatuses[c] === 'filled').length;
             const stoppedCampaigns = dashboardData.clients.filter(c => campaignStatuses[c] === 'stopped').length;
+            const totalApplicants = getTotalApplicants();
 
             let html = `
+                <div class="kpi-grid" style="margin-bottom: 16px;">
+                    <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.1));">
+                        <div class="kpi-label">Bewerber insgesamt</div>
+                        <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${totalApplicants}</div>
+                    </div>
+                </div>
                 <div class="campaign-counter">
                     <div class="counter-item">
                         <div class="counter-label">Aktiv</div>
@@ -2018,6 +2175,10 @@
                 </div>
 
                 <div class="kpi-grid">
+                    <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.1));">
+                        <div class="kpi-label">Bewerber insgesamt</div>
+                        <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${getTotalApplicants()}</div>
+                    </div>
                     <div class="kpi-card">
                         <div class="kpi-label">Gesamtbudget (30 Tage)</div>
                         <div class="kpi-value">${(defaultBudgetPerDay * 30 * dashboardData.clients.length).toLocaleString('de-DE')} Euro</div>
@@ -2206,19 +2367,28 @@
             }
 
             const customer = selectedDetailCustomer;
-            const funnels = getCustomerFunnels(customer);
+            const allFunnels = getCustomerFunnels(customer);
+            const funnels = selectedDetailFunnel ? allFunnels.filter(f => f === selectedDetailFunnel) : allFunnels;
             const profile = getCustomerProfile(customer);
             const monthData = getMonthData();
             const weekData = dashboardData.thisWeek || {};
             const todayData = dashboardData.today || {};
             const yesterdayData = dashboardData.yesterday || {};
+            const breakdown = dashboardData.monthlyBreakdown || [];
 
-            let totalMonth = 0, totalWeek = 0, totalToday = 0, totalYesterday = 0;
+            // Zeitraum Filter anwenden
+            const fromIdx = customerDetailMonthFrom >= 0 ? customerDetailMonthFrom : 0;
+            const toIdx = customerDetailMonthTo >= 0 ? customerDetailMonthTo : breakdown.length - 1;
+            const filteredBreakdown = breakdown.slice(fromIdx, toIdx + 1);
+
+            let totalMonth = 0, totalWeek = 0, totalToday = 0, totalYesterday = 0, totalAllTime = 0, totalFiltered = 0;
             funnels.forEach(f => {
                 totalMonth += monthData[f] || 0;
                 totalWeek += weekData[f] || 0;
                 totalToday += todayData[f] || 0;
                 totalYesterday += yesterdayData[f] || 0;
+                breakdown.forEach(m => { totalAllTime += (m.data || {})[f] || 0; });
+                filteredBreakdown.forEach(m => { totalFiltered += (m.data || {})[f] || 0; });
             });
 
             const activeCampaigns = funnels.filter(f => !campaignStatuses[f] || campaignStatuses[f] === 'active').length;
@@ -2227,24 +2397,96 @@
             const stoppedCampaigns = funnels.filter(f => campaignStatuses[f] === 'stopped').length;
 
             const applicants = (dashboardData.recentApplicants || []).filter(app => {
-                return (customerMap[app.client] || app.client) === customer;
+                const matchCustomer = (customerMap[app.client] || app.client) === customer;
+                if (selectedDetailFunnel) return matchCustomer && app.client === selectedDetailFunnel;
+                return matchCustomer;
             });
 
+            // Chart Daten: gestapelt pro Kampagne
             const monthlyChartData = [];
-            (dashboardData.monthlyBreakdown || []).forEach(month => {
-                let count = 0;
-                funnels.forEach(f => { count += (month.data || {})[f] || 0; });
-                monthlyChartData.push({ label: month.label, count });
+            filteredBreakdown.forEach(month => {
+                let total = 0;
+                funnels.forEach(f => { total += (month.data || {})[f] || 0; });
+                monthlyChartData.push({ label: month.label, total });
             });
+
+            // Pro Kampagne monatliche Daten fuer Stacked Chart
+            const chartColors = ['#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16','#06b6d4','#e879f9'];
+            const stackedDatasets = funnels.map((f, i) => ({
+                label: f.length > 30 ? f.substring(0, 28) + '...' : f,
+                data: filteredBreakdown.map(m => (m.data || {})[f] || 0),
+                backgroundColor: chartColors[i % chartColors.length] + 'B3',
+                borderColor: chartColors[i % chartColors.length],
+                borderWidth: 1,
+                borderRadius: 4
+            }));
+
+            // Statistiken
+            const avgPerMonth = filteredBreakdown.length > 0 ? (totalFiltered / filteredBreakdown.length).toFixed(1) : '0';
+            let bestFunnel = '', bestFunnelCount = 0;
+            funnels.forEach(f => {
+                let count = 0;
+                filteredBreakdown.forEach(m => { count += (m.data || {})[f] || 0; });
+                if (count > bestFunnelCount) { bestFunnelCount = count; bestFunnel = f; }
+            });
+
+            // Wachstum berechnen (letzte 2 Monate im Filter)
+            let growthPct = 0;
+            if (filteredBreakdown.length >= 2) {
+                const lastMonth = filteredBreakdown[filteredBreakdown.length - 1];
+                const prevMonth = filteredBreakdown[filteredBreakdown.length - 2];
+                let lastTotal = 0, prevTotal = 0;
+                funnels.forEach(f => { lastTotal += (lastMonth.data || {})[f] || 0; prevTotal += (prevMonth.data || {})[f] || 0; });
+                growthPct = prevTotal > 0 ? ((lastTotal - prevTotal) / prevTotal * 100).toFixed(0) : 0;
+            }
+
+            // Zeitraum Optionen
+            const monthOptions = breakdown.map((m, i) => `<option value="${i}" ${i === fromIdx ? 'selected' : ''}>${m.label}</option>`).join('');
+            const monthOptionsTo = breakdown.map((m, i) => `<option value="${i}" ${i === toIdx ? 'selected' : ''}>${m.label}</option>`).join('');
+
+            // Funnel Filter Optionen
+            const funnelOptions = `<option value="">Alle Kampagnen (${allFunnels.length})</option>` +
+                allFunnels.map(f => `<option value="${f}" ${f === selectedDetailFunnel ? 'selected' : ''}>${f}</option>`).join('');
 
             let html = `
-                <div style="margin-bottom: 20px;">
-                    <select id="customerDetailSelect" style="padding: 10px 16px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 15px; min-width: 300px; cursor: pointer;">
-                        ${sortedCustomers.map(c => `<option value="${c}" ${c === customer ? 'selected' : ''}>${c}</option>`).join('')}
-                    </select>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 20px;">
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Kunde</label>
+                        <select id="customerDetailSelect" style="padding: 10px 16px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 15px; min-width: 280px; cursor: pointer;">
+                            ${sortedCustomers.map(c => `<option value="${c}" ${c === customer ? 'selected' : ''}>${c}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Kampagne</label>
+                        <select id="customerFunnelSelect" style="padding: 10px 16px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 14px; min-width: 240px; cursor: pointer;">
+                            ${funnelOptions}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Von</label>
+                        <select id="customerMonthFrom" style="padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 14px; cursor: pointer;">
+                            ${monthOptions}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Bis</label>
+                        <select id="customerMonthTo" style="padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 14px; cursor: pointer;">
+                            ${monthOptionsTo}
+                        </select>
+                    </div>
+                    <button onclick="customerDetailMonthFrom=-1;customerDetailMonthTo=-1;selectedDetailFunnel='';renderTab('customerDetail')"
+                        style="padding: 10px 16px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-hover); color: var(--text-primary); cursor: pointer; font-size: 13px;">Filter Reset</button>
                 </div>
 
                 <div class="kpi-grid">
+                    <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(99, 102, 241, 0.1));">
+                        <div class="kpi-label">Bewerber insgesamt</div>
+                        <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${totalAllTime}</div>
+                    </div>
+                    <div class="kpi-card" style="border: 1px solid var(--color-info);">
+                        <div class="kpi-label">Im Zeitraum</div>
+                        <div class="kpi-value" style="color: var(--color-info);">${totalFiltered}</div>
+                    </div>
                     <div class="kpi-card">
                         <div class="kpi-label">Heute</div>
                         <div class="kpi-value">${totalToday}</div>
@@ -2262,21 +2504,39 @@
                         <div class="kpi-value">${totalMonth}</div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-label">Kampagnen aktiv</div>
-                        <div class="kpi-value">${activeCampaigns}</div>
+                        <div class="kpi-label">&#216; pro Monat</div>
+                        <div class="kpi-value">${avgPerMonth}</div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-label">Kampagnen gesamt</div>
-                        <div class="kpi-value">${funnels.length}</div>
+                        <div class="kpi-label">Wachstum</div>
+                        <div class="kpi-value" style="color: ${Number(growthPct) >= 0 ? 'var(--color-success)' : 'var(--color-danger)'};">${Number(growthPct) >= 0 ? '+' : ''}${growthPct}%</div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-label">Pausiert / Besetzt</div>
-                        <div class="kpi-value">${pausedCampaigns} / ${filledCampaigns}</div>
+                        <div class="kpi-label">Aktiv / Gesamt</div>
+                        <div class="kpi-value">${activeCampaigns} / ${funnels.length}</div>
                     </div>
-                    <div class="kpi-card">
-                        <div class="kpi-label">Deaktiviert</div>
-                        <div class="kpi-value">${stoppedCampaigns}</div>
+                </div>
+
+                ${bestFunnel ? `<div style="background: var(--bg-card); border-radius: 12px; padding: 14px 18px; border: 1px solid var(--border-color); margin-top: 16px; display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 20px;">&#127942;</span>
+                    <div><span style="color: var(--text-muted); font-size: 13px;">Beste Kampagne im Zeitraum:</span>
+                    <strong style="color: var(--color-primary-light); margin-left: 6px;">${bestFunnel}</strong>
+                    <span style="color: var(--text-secondary); margin-left: 6px;">(${bestFunnelCount} Bewerber)</span></div>
+                </div>` : ''}
+
+                <div style="display: grid; grid-template-columns: ${funnels.length > 1 ? '1fr 1fr' : '1fr'}; gap: 20px; margin-top: 20px;">
+                    <div>
+                        <div class="section-title">${funnels.length > 1 ? 'Kampagnen Vergleich (gestapelt)' : 'Monatsverlauf'}</div>
+                        <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; border: 1px solid var(--border-color); height: 280px;">
+                            <canvas id="customerStackedChart"></canvas>
+                        </div>
                     </div>
+                    ${funnels.length > 1 ? `<div>
+                        <div class="section-title">Gesamt Verlauf</div>
+                        <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; border: 1px solid var(--border-color); height: 280px;">
+                            <canvas id="customerTotalLineChart"></canvas>
+                        </div>
+                    </div>` : ''}
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
@@ -2306,8 +2566,9 @@
                                     style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px; resize: vertical;">${profile.notizen || ''}</textarea>
                             </div>
                         </div>
-
-                        <div class="section-title" style="margin-top: 16px;">Kampagnen Timeline</div>
+                    </div>
+                    <div>
+                        <div class="section-title">Kampagnen Timeline</div>
                         <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; border: 1px solid var(--border-color);">
                             ${[0,1,2,3,4].map(i => {
                                 const camp = (profile.kampagnen || [])[i] || {};
@@ -2332,56 +2593,86 @@
                             }).join('')}
                         </div>
                     </div>
-                    <div>
-                        <div class="section-title">Monatsverlauf</div>
-                        <div style="background: var(--bg-card); border-radius: 12px; padding: 16px; border: 1px solid var(--border-color); height: 220px;">
-                            <canvas id="customerMonthlyChart"></canvas>
-                        </div>
-                    </div>
                 </div>
 
-                <div class="section-title" style="margin-top: 20px;">Kampagnen (${funnels.length})</div>
+                <div class="section-title" style="margin-top: 20px;">Detailanalyse pro Kampagne</div>
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>Kampagne (Funnel)</th>
+                                <th style="min-width: 180px;">Kampagne</th>
                                 <th>Status</th>
+                                <th>Insgesamt</th>
+                                ${filteredBreakdown.map(m => `<th>${m.label}</th>`).join('')}
+                                <th>&#216;/Monat</th>
+                                <th>Trend</th>
                                 <th>Online seit</th>
-                                <th>Heute</th>
-                                <th>Woche</th>
-                                <th>Monat</th>
-                                <th>Letzter Bewerber</th>
                                 <th>Notiz</th>
                             </tr>
                         </thead>
                         <tbody>
             `;
 
-            funnels.forEach(funnel => {
+            funnels.forEach((funnel, fi) => {
                 const status = campaignStatuses[funnel] || 'active';
-                const statusLabels = { active: 'Aktiv', paused: 'Pausiert', filled: 'Stelle besetzt', stopped: 'Deaktiviert' };
+                const statusLabels = { active: 'Aktiv', paused: 'Pausiert', filled: 'Besetzt', stopped: 'Aus' };
                 const statusColors = { active: 'var(--color-success)', paused: 'var(--color-warning)', filled: 'var(--color-info)', stopped: 'var(--color-danger)' };
-                const lastApp = (dashboardData.recentApplicants || []).find(a => a.client === funnel)
-                    || (dashboardData.lastApplicantByClient && dashboardData.lastApplicantByClient[funnel]);
                 const campDetail = (profile.campaigns || {})[funnel] || {};
                 const escapedFunnel = funnel.replace(/'/g, "\\'");
 
+                let funnelTotal = 0;
+                const monthlyCounts = filteredBreakdown.map(m => {
+                    const c = (m.data || {})[funnel] || 0;
+                    funnelTotal += c;
+                    return c;
+                });
+                const funnelAvg = filteredBreakdown.length > 0 ? (funnelTotal / filteredBreakdown.length).toFixed(1) : '0';
+
+                // Trend: letzter vs vorletzter Monat im Filter
+                let trendIcon = '<span style="color: var(--text-muted);">&#8596;</span>';
+                if (monthlyCounts.length >= 2) {
+                    const last = monthlyCounts[monthlyCounts.length - 1];
+                    const prev = monthlyCounts[monthlyCounts.length - 2];
+                    if (last > prev) trendIcon = '<span style="color: var(--color-success);">&#9650;</span>';
+                    else if (last < prev) trendIcon = '<span style="color: var(--color-danger);">&#9660;</span>';
+                }
+
+                // Heatmap Farben pro Monatszelle
+                const maxInFunnel = Math.max(...monthlyCounts, 1);
+
                 html += `
                     <tr>
-                        <td style="max-width: 200px;">${funnel}</td>
-                        <td><span style="color: ${statusColors[status]}; font-weight: 600;">${statusLabels[status] || status}</span></td>
+                        <td style="max-width: 200px; cursor: pointer; color: ${fi === 0 && selectedDetailFunnel ? 'var(--color-primary-light)' : 'inherit'};" onclick="selectedDetailFunnel='${escapedFunnel}';renderTab('customerDetail')">${funnel}</td>
+                        <td><span style="color: ${statusColors[status]}; font-weight: 600; font-size: 12px;">${statusLabels[status] || status}</span></td>
+                        <td style="font-weight: 700; color: var(--color-primary-light);">${funnelTotal}</td>
+                        ${monthlyCounts.map(c => {
+                            const intensity = c > 0 ? Math.min(0.6, (c / maxInFunnel) * 0.6) : 0;
+                            const bgColor = c > 0 ? `rgba(99, 102, 241, ${intensity})` : 'transparent';
+                            return `<td style="text-align: center; background: ${bgColor}; font-weight: ${c > 0 ? '600' : '400'};">${c}</td>`;
+                        }).join('')}
+                        <td style="color: var(--text-secondary);">${funnelAvg}</td>
+                        <td style="text-align: center;">${trendIcon}</td>
                         <td><input type="date" value="${campDetail.startdatum || ''}" onchange="saveCampaignDetail('${customer}', '${escapedFunnel}', 'startdatum', this.value)"
-                            style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 12px;"></td>
-                        <td><strong>${todayData[funnel] || 0}</strong></td>
-                        <td>${weekData[funnel] || 0}</td>
-                        <td>${monthData[funnel] || 0}</td>
-                        <td style="font-size: 12px;">${lastApp ? lastApp.date : 'Keine'}</td>
+                            style="padding: 4px 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 11px; width: 110px;"></td>
                         <td><input type="text" value="${campDetail.notiz || ''}" placeholder="..." onchange="saveCampaignDetail('${customer}', '${escapedFunnel}', 'notiz', this.value)"
-                            style="width: 120px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 12px;"></td>
+                            style="width: 100px; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 11px;"></td>
                     </tr>
                 `;
             });
+
+            // Summenzeile
+            html += `<tr style="border-top: 2px solid var(--color-primary); font-weight: 700;">
+                <td>Gesamt</td>
+                <td></td>
+                <td style="color: var(--color-primary-light);">${totalFiltered}</td>
+                ${filteredBreakdown.map(m => {
+                    let mTotal = 0;
+                    funnels.forEach(f => { mTotal += (m.data || {})[f] || 0; });
+                    return `<td style="text-align: center;">${mTotal}</td>`;
+                }).join('')}
+                <td>${avgPerMonth}</td>
+                <td></td><td></td><td></td>
+            </tr>`;
 
             html += `
                         </tbody>
@@ -2392,7 +2683,15 @@
             `;
 
             if (applicants.length > 0) {
-                html += applicants.slice(0, 20).map(app => `
+                html += applicants.slice(0, 30).map(app => {
+                    let dateDisplay = app.date || '';
+                    let timeDisplay = '';
+                    if (dateDisplay.includes(' ')) {
+                        const parts = dateDisplay.split(' ');
+                        dateDisplay = parts[0];
+                        timeDisplay = parts[1] ? parts[1].substring(0, 5) + ' Uhr' : '';
+                    }
+                    return `
                     <div class="applicant-item">
                         <div class="applicant-info">
                             <div class="applicant-name">${app.name}</div>
@@ -2401,48 +2700,112 @@
                                 <span>${app.city}</span>
                             </div>
                         </div>
-                        <div class="applicant-date">${app.date}</div>
-                    </div>
-                `).join('');
+                        <div class="applicant-date">${dateDisplay}${timeDisplay ? ' <span style="color: var(--text-muted); font-size: 11px;">' + timeDisplay + '</span>' : ''}</div>
+                    </div>`;
+                }).join('');
             } else {
-                html += '<div class="empty-state"><div class="empty-state-icon">👤</div>Keine Bewerber gefunden</div>';
+                html += '<div class="empty-state"><div class="empty-state-icon">&#128100;</div>Keine Bewerber gefunden</div>';
             }
 
             container.innerHTML = html;
 
+            // Event Listener
             document.getElementById('customerDetailSelect').onchange = (e) => {
                 selectedDetailCustomer = e.target.value;
+                selectedDetailFunnel = '';
+                customerDetailMonthFrom = -1;
+                customerDetailMonthTo = -1;
+                renderTab('customerDetail');
+            };
+            document.getElementById('customerFunnelSelect').onchange = (e) => {
+                selectedDetailFunnel = e.target.value;
+                renderTab('customerDetail');
+            };
+            document.getElementById('customerMonthFrom').onchange = (e) => {
+                customerDetailMonthFrom = parseInt(e.target.value);
+                renderTab('customerDetail');
+            };
+            document.getElementById('customerMonthTo').onchange = (e) => {
+                customerDetailMonthTo = parseInt(e.target.value);
                 renderTab('customerDetail');
             };
 
-            if (monthlyChartData.length > 0) {
-                const ctx = document.getElementById('customerMonthlyChart');
-                if (ctx) {
-                    if (charts.customerMonthly) charts.customerMonthly.destroy();
-                    charts.customerMonthly = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: monthlyChartData.map(d => d.label),
-                            datasets: [{
-                                label: 'Bewerbungen',
-                                data: monthlyChartData.map(d => d.count),
-                                backgroundColor: 'rgba(99, 102, 241, 0.7)',
-                                borderColor: '#6366f1',
-                                borderWidth: 1,
-                                borderRadius: 6
-                            }]
+            // Stacked Bar Chart
+            const stackedCtx = document.getElementById('customerStackedChart');
+            if (stackedCtx && filteredBreakdown.length > 0) {
+                if (charts.customerMonthly) charts.customerMonthly.destroy();
+                charts.customerMonthly = new Chart(stackedCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: filteredBreakdown.map(m => m.label),
+                        datasets: funnels.length > 1 ? stackedDatasets : [{
+                            label: 'Bewerbungen',
+                            data: monthlyChartData.map(d => d.total),
+                            backgroundColor: 'rgba(99, 102, 241, 0.7)',
+                            borderColor: '#6366f1',
+                            borderWidth: 1,
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: funnels.length > 1 && funnels.length <= 8, position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 12, padding: 8 } }
                         },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: {
-                                y: { beginAtZero: true, ticks: { color: 'var(--text-muted)', stepSize: 1 }, grid: { color: 'rgba(148,163,184,0.1)' } },
-                                x: { ticks: { color: 'var(--text-muted)' }, grid: { display: false } }
-                            }
+                        scales: {
+                            y: { beginAtZero: true, stacked: funnels.length > 1, ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: 'rgba(148,163,184,0.1)' } },
+                            x: { stacked: funnels.length > 1, ticks: { color: '#94a3b8' }, grid: { display: false } }
                         }
-                    });
-                }
+                    }
+                });
+            }
+
+            // Total Line Chart (nur bei mehreren Kampagnen)
+            const lineCtx = document.getElementById('customerTotalLineChart');
+            if (lineCtx && filteredBreakdown.length > 0 && funnels.length > 1) {
+                if (charts.customerLine) charts.customerLine.destroy();
+                // Kumulative Linie
+                let cumulative = 0;
+                const cumulativeData = monthlyChartData.map(d => { cumulative += d.total; return cumulative; });
+                charts.customerLine = new Chart(lineCtx, {
+                    type: 'line',
+                    data: {
+                        labels: filteredBreakdown.map(m => m.label),
+                        datasets: [{
+                            label: 'Pro Monat',
+                            data: monthlyChartData.map(d => d.total),
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                            fill: true,
+                            tension: 0.3,
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#6366f1'
+                        }, {
+                            label: 'Kumulativ',
+                            data: cumulativeData,
+                            borderColor: '#10b981',
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 3],
+                            tension: 0.3,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#10b981',
+                            yAxisID: 'y1'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: true, position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 14 } } },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: 'rgba(148,163,184,0.1)' } },
+                            y1: { beginAtZero: true, position: 'right', ticks: { color: '#10b981' }, grid: { display: false } },
+                            x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+                        }
+                    }
+                });
             }
         }
 
@@ -2547,6 +2910,24 @@
             return total;
         }
 
+        function getTotalApplicants() {
+            const breakdown = dashboardData.monthlyBreakdown || [];
+            if (breakdown.length === 0) return 0;
+            if (!currentClient) {
+                return breakdown.reduce((sum, m) => sum + (m.total || 0), 0);
+            }
+            const customerMap = dashboardData.customerMap || {};
+            let total = 0;
+            breakdown.forEach(m => {
+                const data = m.data || {};
+                Object.entries(data).forEach(([funnel, count]) => {
+                    const customer = customerMap[funnel] || funnel;
+                    if (customer === currentClient || funnel === currentClient) total += count;
+                });
+            });
+            return total;
+        }
+
         function getAlertsCount() {
             return calculateAlerts().length;
         }
@@ -2567,6 +2948,136 @@
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, limit)
                 .map(([funnel, count], i) => ({ rank: i + 1, name: funnel, count }));
+        }
+
+        function getBestCampaignsPrevMonth(limit) {
+            limit = limit || 5;
+            const breakdown = dashboardData.monthlyBreakdown || [];
+            if (breakdown.length < 2) return [];
+            const prevMonthData = breakdown[breakdown.length - 2].data || {};
+            const customerMap = dashboardData.customerMap || {};
+
+            return Object.entries(prevMonthData)
+                .filter(([funnel, count]) => {
+                    if (!currentClient) return true;
+                    const customer = customerMap[funnel] || funnel;
+                    return customer === currentClient || funnel === currentClient;
+                })
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, limit)
+                .map(([funnel, count], i) => ({ rank: i + 1, name: funnel, count }));
+        }
+
+        function showManualEntryDialog() {
+            const clients = dashboardData.clients || [];
+            const customerMap = dashboardData.customerMap || {};
+            const options = clients.map(f => `<option value="${f}">${customerMap[f] || f}</option>`).join('');
+
+            const overlay = document.createElement('div');
+            overlay.id = 'manualEntryOverlay';
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; display: flex; align-items: center; justify-content: center;';
+            overlay.innerHTML = `
+                <div style="background: var(--bg-card); border-radius: 16px; padding: 24px; width: 420px; max-width: 90vw; border: 1px solid var(--border-color);">
+                    <h3 style="margin-bottom: 16px; font-size: 16px;">Bewerber manuell nachtragen</h3>
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Kampagne</label>
+                        <select id="manualFunnel" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px;">
+                            ${options}
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Oder neue Kampagne (Funnel Name)</label>
+                        <input type="text" id="manualNewFunnel" placeholder="z.B. Azubi-Codebook GmbH" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px;">
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Anzahl Bewerber</label>
+                        <input type="number" id="manualCount" value="1" min="1" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px;">
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Monat</label>
+                        <select id="manualMonth" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px;">
+                            ${(dashboardData.monthlyBreakdown || []).map((m, i) => `<option value="${i}" ${i === (dashboardData.monthlyBreakdown || []).length - 1 ? 'selected' : ''}>${m.label}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                        <button onclick="closeManualEntry()" style="padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); cursor: pointer;">Abbrechen</button>
+                        <button onclick="saveManualEntry()" style="padding: 8px 16px; border-radius: 8px; border: none; background: var(--color-primary); color: #fff; cursor: pointer; font-weight: 600;">Speichern</button>
+                    </div>
+                    <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Manuell eingetragen:</div>
+                        <div id="manualEntryList" style="font-size: 12px; max-height: 120px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) closeManualEntry(); });
+            renderManualEntryList();
+        }
+
+        function closeManualEntry() {
+            const overlay = document.getElementById('manualEntryOverlay');
+            if (overlay) overlay.remove();
+        }
+
+        function renderManualEntryList() {
+            const list = document.getElementById('manualEntryList');
+            if (!list) return;
+            const entries = Object.entries(manualApplicants);
+            if (entries.length === 0) {
+                list.innerHTML = '<div style="color: var(--text-muted);">Noch keine manuellen Eintr\u00e4ge</div>';
+                return;
+            }
+            list.innerHTML = entries.map(([key, val]) => {
+                const [funnel, monthIdx] = key.split('|||');
+                const monthLabel = (dashboardData.monthlyBreakdown || [])[parseInt(monthIdx)]?.label || monthIdx;
+                return `<div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid var(--border-color);">
+                    <span>${funnel} (${monthLabel})</span>
+                    <span style="display: flex; align-items: center; gap: 6px;"><strong>+${val}</strong>
+                    <button onclick="removeManualEntry('${key.replace(/'/g, "\\'")}')" style="background: var(--color-danger); color: #fff; border: none; border-radius: 4px; padding: 1px 6px; cursor: pointer; font-size: 10px;">X</button></span>
+                </div>`;
+            }).join('');
+        }
+
+        function saveManualEntry() {
+            const funnelSelect = document.getElementById('manualFunnel').value;
+            const newFunnel = document.getElementById('manualNewFunnel').value.trim();
+            const count = parseInt(document.getElementById('manualCount').value) || 1;
+            const monthIdx = document.getElementById('manualMonth').value;
+
+            const funnel = newFunnel || funnelSelect;
+            if (!funnel) return;
+
+            const key = funnel + '|||' + monthIdx;
+            manualApplicants[key] = (manualApplicants[key] || 0) + count;
+            saveLocalStorage();
+            applyManualApplicants();
+            renderManualEntryList();
+            renderTab(currentTab);
+        }
+
+        function removeManualEntry(key) {
+            delete manualApplicants[key];
+            saveLocalStorage();
+            loadData();
+        }
+
+        function applyManualApplicants() {
+            if (!dashboardData || !dashboardData.monthlyBreakdown) return;
+            Object.entries(manualApplicants).forEach(([key, count]) => {
+                const [funnel, monthIdxStr] = key.split('|||');
+                const monthIdx = parseInt(monthIdxStr);
+                const breakdown = dashboardData.monthlyBreakdown;
+                if (breakdown[monthIdx]) {
+                    if (!breakdown[monthIdx].data) breakdown[monthIdx].data = {};
+                    if (!breakdown[monthIdx].data[funnel]) {
+                        breakdown[monthIdx].data[funnel] = 0;
+                        if (!dashboardData.clients.includes(funnel)) dashboardData.clients.push(funnel);
+                        if (!dashboardData.customerMap[funnel]) dashboardData.customerMap[funnel] = funnel;
+                    }
+                    breakdown[monthIdx].data[funnel] += count;
+                    breakdown[monthIdx].total = (breakdown[monthIdx].total || 0) + count;
+                }
+            });
         }
 
         init();
