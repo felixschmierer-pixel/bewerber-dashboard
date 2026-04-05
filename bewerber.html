@@ -1442,7 +1442,7 @@
 
             const dayOfMonth = new Date().getDate();
             const avgPerDay = monthTotal > 0 ? (monthTotal / dayOfMonth).toFixed(1) : (weekTotal > 0 ? (weekTotal / Math.min(dayOfMonth, 7)).toFixed(1) : 0);
-            const activeCampaigns = Object.keys(campaignStatuses).filter(k => campaignStatuses[k] === 'active').length || data.clients.length;
+            const activeCampaigns = data.clients.filter(c => !isInternalCampaign(c) && (!campaignStatuses[c] || campaignStatuses[c] === 'active')).length;
             const alertsCount = getAlertsCount();
             const bestCampaigns = getBestCampaigns(5);
 
@@ -2999,46 +2999,81 @@
         function showManualEntryDialog() {
             const clients = dashboardData.clients || [];
             const customerMap = dashboardData.customerMap || {};
-            const options = clients.map(f => `<option value="${f}">${customerMap[f] || f}</option>`).join('');
+            const options = clients.map(f => `<option value="${f}">${f} (${customerMap[f] || f})</option>`).join('');
+
+            // Eindeutige Kundennamen fuer Dropdown
+            const customerNames = new Set();
+            clients.forEach(f => customerNames.add(customerMap[f] || f));
+            const customerOptions = Array.from(customerNames).sort().map(c => `<option value="${c}">${c}</option>`).join('');
+
+            const today = new Date().toISOString().split('T')[0];
 
             const overlay = document.createElement('div');
             overlay.id = 'manualEntryOverlay';
             overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; display: flex; align-items: center; justify-content: center;';
             overlay.innerHTML = `
-                <div style="background: var(--bg-card); border-radius: 16px; padding: 24px; width: 420px; max-width: 90vw; border: 1px solid var(--border-color);">
+                <div style="background: var(--bg-card); border-radius: 16px; padding: 24px; width: 480px; max-width: 90vw; border: 1px solid var(--border-color); max-height: 90vh; overflow-y: auto;">
                     <h3 style="margin-bottom: 16px; font-size: 16px;">Bewerber manuell nachtragen</h3>
-                    <div style="margin-bottom: 12px;">
-                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Kampagne</label>
+
+                    <div style="margin-bottom: 14px; padding: 10px; border-radius: 8px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.3);">
+                        <div style="font-size: 12px; color: var(--color-primary-light); margin-bottom: 6px; font-weight: 600;">Bestehende Kampagne zuordnen</div>
                         <select id="manualFunnel" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px;">
+                            <option value="">Keine (neue Kampagne anlegen)</option>
                             ${options}
                         </select>
+                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Wenn der Webhook schon existiert, hier die Kampagne auswählen</div>
                     </div>
-                    <div style="margin-bottom: 12px;">
-                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Oder neue Kampagne (Funnel Name)</label>
-                        <input type="text" id="manualNewFunnel" placeholder="z.B. Azubi-Codebook GmbH" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px;">
+
+                    <div id="manualNewSection" style="margin-bottom: 14px; padding: 10px; border-radius: 8px; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);">
+                        <div style="font-size: 12px; color: var(--color-warning); margin-bottom: 6px; font-weight: 600;">Oder neue Kampagne anlegen</div>
+                        <div style="margin-bottom: 8px;">
+                            <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">Kampagnenname / Funnel</label>
+                            <input type="text" id="manualNewFunnel" placeholder="z.B. Azubi Dachdecker Zimmerer Tischler Codebook" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">Kunde</label>
+                            <div style="display: flex; gap: 8px;">
+                                <select id="manualCustomerSelect" style="flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px;">
+                                    <option value="">Oder rechts eintippen</option>
+                                    ${customerOptions}
+                                </select>
+                                <input type="text" id="manualCustomerNew" placeholder="Neuer Kunde" style="flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px;">
+                            </div>
+                        </div>
                     </div>
-                    <div style="margin-bottom: 12px;">
-                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Anzahl Bewerber</label>
-                        <input type="number" id="manualCount" value="1" min="1" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px;">
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+                        <div>
+                            <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">Anzahl Bewerber</label>
+                            <input type="number" id="manualCount" value="1" min="1" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">Datum</label>
+                            <input type="date" id="manualDate" value="${today}" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px;">
+                        </div>
                     </div>
-                    <div style="margin-bottom: 16px;">
-                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px;">Monat</label>
-                        <select id="manualMonth" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px;">
-                            ${(dashboardData.monthlyBreakdown || []).map((m, i) => `<option value="${i}" ${i === (dashboardData.monthlyBreakdown || []).length - 1 ? 'selected' : ''}>${formatMonthLabel(m.label)}</option>`).join('')}
-                        </select>
-                    </div>
+
                     <div style="display: flex; gap: 8px; justify-content: flex-end;">
                         <button onclick="closeManualEntry()" style="padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); cursor: pointer;">Abbrechen</button>
                         <button onclick="saveManualEntry()" style="padding: 8px 16px; border-radius: 8px; border: none; background: var(--color-primary); color: #fff; cursor: pointer; font-weight: 600;">Speichern</button>
                     </div>
+
                     <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px;">
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Manuell eingetragen:</div>
-                        <div id="manualEntryList" style="font-size: 12px; max-height: 120px; overflow-y: auto;"></div>
+                        <div id="manualEntryList" style="font-size: 12px; max-height: 200px; overflow-y: auto;"></div>
                     </div>
                 </div>
             `;
             document.body.appendChild(overlay);
             overlay.addEventListener('click', (e) => { if (e.target === overlay) closeManualEntry(); });
+
+            // Toggle: wenn bestehende Kampagne gewählt, neue Sektion ausgrauen
+            document.getElementById('manualFunnel').addEventListener('change', function() {
+                const newSection = document.getElementById('manualNewSection');
+                newSection.style.opacity = this.value ? '0.4' : '1';
+                newSection.style.pointerEvents = this.value ? 'none' : 'auto';
+            });
+
             renderManualEntryList();
         }
 
@@ -3055,32 +3090,138 @@
                 list.innerHTML = '<div style="color: var(--text-muted);">Noch keine manuellen Eintr\u00e4ge</div>';
                 return;
             }
+
+            // Funnel Optionen fuer Zuordnung
+            const clients = dashboardData.clients || [];
+            const customerMap = dashboardData.customerMap || {};
+
             list.innerHTML = entries.map(([key, val]) => {
+                const entry = typeof val === 'object' ? val : { count: val, customer: '', date: '', linkedTo: '' };
                 const [funnel, monthIdx] = key.split('|||');
                 const monthLabel = formatMonthLabel((dashboardData.monthlyBreakdown || [])[parseInt(monthIdx)]?.label || monthIdx);
-                return `<div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid var(--border-color);">
-                    <span>${funnel} (${monthLabel})</span>
-                    <span style="display: flex; align-items: center; gap: 6px;"><strong>+${val}</strong>
-                    <button onclick="removeManualEntry('${key.replace(/'/g, "\\'")}')" style="background: var(--color-danger); color: #fff; border: none; border-radius: 4px; padding: 1px 6px; cursor: pointer; font-size: 10px;">X</button></span>
+                const isLinked = entry.linkedTo ? true : false;
+                const displayName = isLinked ? `<span style="text-decoration: line-through; opacity: 0.5;">${funnel}</span> &#10132; <strong>${entry.linkedTo}</strong>` : funnel;
+                const customerDisplay = entry.customer ? ` <span style="color: var(--color-primary-light);">[${entry.customer}]</span>` : '';
+                const dateDisplay = entry.date ? ` <span style="color: var(--text-muted);">${entry.date}</span>` : '';
+                const count = entry.count || val;
+
+                // Zuordnen Button: nur wenn nicht bereits zugeordnet und es echte Funnels gibt
+                const linkBtn = !isLinked && clients.length > 0
+                    ? `<button onclick="showLinkDialog('${key.replace(/'/g, "\\'")}')" style="background: var(--color-info); color: #fff; border: none; border-radius: 4px; padding: 1px 6px; cursor: pointer; font-size: 10px;" title="Einem echten Webhook Funnel zuordnen">&#128279;</button>`
+                    : '';
+
+                return `<div style="padding: 5px 0; border-bottom: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>${displayName}${customerDisplay}</span>
+                        <span style="display: flex; align-items: center; gap: 4px;">
+                            <strong>+${count}</strong>${dateDisplay}
+                            ${linkBtn}
+                            <button onclick="removeManualEntry('${key.replace(/'/g, "\\'")}')" style="background: var(--color-danger); color: #fff; border: none; border-radius: 4px; padding: 1px 6px; cursor: pointer; font-size: 10px;">X</button>
+                        </span>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-muted);">${monthLabel}</div>
                 </div>`;
             }).join('');
+        }
+
+        function showLinkDialog(entryKey) {
+            const clients = dashboardData.clients || [];
+            const customerMap = dashboardData.customerMap || {};
+            const opts = clients.map(f => `<option value="${f}">${f} (${customerMap[f] || f})</option>`).join('');
+
+            const [funnel] = entryKey.split('|||');
+            const dialog = document.createElement('div');
+            dialog.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-card); border-radius: 12px; padding: 20px; z-index: 10001; border: 2px solid var(--color-info); width: 400px; max-width: 90vw;';
+            dialog.innerHTML = `
+                <h4 style="margin-bottom: 8px; font-size: 14px;">"${funnel}" zuordnen</h4>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Die manuellen Bewerber werden dem echten Webhook Funnel zugerechnet. So entsteht keine Dopplung.</p>
+                <select id="linkTarget" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 13px; margin-bottom: 12px;">
+                    ${opts}
+                </select>
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button onclick="this.parentElement.parentElement.remove()" style="padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 12px;">Abbrechen</button>
+                    <button onclick="linkManualEntry('${entryKey.replace(/'/g, "\\'")}', document.getElementById('linkTarget').value); this.parentElement.parentElement.remove();"
+                        style="padding: 6px 14px; border-radius: 8px; border: none; background: var(--color-info); color: #fff; cursor: pointer; font-weight: 600; font-size: 12px;">Zuordnen</button>
+                </div>
+            `;
+            document.body.appendChild(dialog);
+        }
+
+        function linkManualEntry(oldKey, targetFunnel) {
+            if (!targetFunnel || !manualApplicants[oldKey]) return;
+            const oldEntry = manualApplicants[oldKey];
+            const entry = typeof oldEntry === 'object' ? oldEntry : { count: oldEntry, customer: '', date: '', linkedTo: '' };
+
+            // Alten Eintrag entfernen
+            delete manualApplicants[oldKey];
+
+            // Neuen Key mit Zielfunnel erstellen
+            const [, monthIdx] = oldKey.split('|||');
+            const newKey = targetFunnel + '|||' + monthIdx;
+
+            if (manualApplicants[newKey]) {
+                const existing = typeof manualApplicants[newKey] === 'object' ? manualApplicants[newKey] : { count: manualApplicants[newKey], customer: '', date: '', linkedTo: '' };
+                existing.count += entry.count;
+                manualApplicants[newKey] = existing;
+            } else {
+                entry.linkedTo = '';
+                manualApplicants[newKey] = entry;
+            }
+
+            saveLocalStorage();
+            loadData();
         }
 
         function saveManualEntry() {
             const funnelSelect = document.getElementById('manualFunnel').value;
             const newFunnel = document.getElementById('manualNewFunnel').value.trim();
             const count = parseInt(document.getElementById('manualCount').value) || 1;
-            const monthIdx = document.getElementById('manualMonth').value;
+            const dateVal = document.getElementById('manualDate').value;
+            const customerSelect = document.getElementById('manualCustomerSelect')?.value || '';
+            const customerNew = document.getElementById('manualCustomerNew')?.value?.trim() || '';
 
-            const funnel = newFunnel || funnelSelect;
+            const funnel = funnelSelect || newFunnel;
             if (!funnel) return;
 
+            const customer = funnelSelect ? '' : (customerNew || customerSelect);
+
+            // Datum zu Monatsindex zuordnen
+            let monthIdx = (dashboardData.monthlyBreakdown || []).length - 1;
+            if (dateVal) {
+                const entryDate = new Date(dateVal);
+                const breakdown = dashboardData.monthlyBreakdown || [];
+                for (let i = 0; i < breakdown.length; i++) {
+                    const mDate = new Date(breakdown[i].label);
+                    if (!isNaN(mDate.getTime()) && entryDate.getFullYear() === mDate.getFullYear() && entryDate.getMonth() === mDate.getMonth()) {
+                        monthIdx = i;
+                        break;
+                    }
+                }
+            }
+
             const key = funnel + '|||' + monthIdx;
-            manualApplicants[key] = (manualApplicants[key] || 0) + count;
+            const existing = manualApplicants[key];
+            if (existing && typeof existing === 'object') {
+                existing.count += count;
+                if (customer) existing.customer = customer;
+                if (dateVal) existing.date = dateVal;
+            } else {
+                const prevCount = typeof existing === 'number' ? existing : 0;
+                manualApplicants[key] = { count: prevCount + count, customer: customer, date: dateVal, linkedTo: '' };
+            }
+
+            // Customer Map aktualisieren bei neuer Kampagne
+            if (!funnelSelect && customer) {
+                if (!dashboardData.customerMap) dashboardData.customerMap = {};
+                dashboardData.customerMap[funnel] = customer;
+            }
+
             saveLocalStorage();
             applyManualApplicants();
             renderManualEntryList();
             renderTab(currentTab);
+            document.getElementById('manualCount').value = '1';
+            document.getElementById('manualNewFunnel').value = '';
         }
 
         function removeManualEntry(key) {
@@ -3091,16 +3232,20 @@
 
         function applyManualApplicants() {
             if (!dashboardData || !dashboardData.monthlyBreakdown) return;
-            Object.entries(manualApplicants).forEach(([key, count]) => {
+            Object.entries(manualApplicants).forEach(([key, val]) => {
+                const entry = typeof val === 'object' ? val : { count: val, customer: '', date: '', linkedTo: '' };
                 const [funnel, monthIdxStr] = key.split('|||');
                 const monthIdx = parseInt(monthIdxStr);
+                const count = entry.count || 0;
                 const breakdown = dashboardData.monthlyBreakdown;
-                if (breakdown[monthIdx]) {
+                if (breakdown[monthIdx] && count > 0) {
                     if (!breakdown[monthIdx].data) breakdown[monthIdx].data = {};
                     if (!breakdown[monthIdx].data[funnel]) {
                         breakdown[monthIdx].data[funnel] = 0;
                         if (!dashboardData.clients.includes(funnel)) dashboardData.clients.push(funnel);
-                        if (!dashboardData.customerMap[funnel]) dashboardData.customerMap[funnel] = funnel;
+                    }
+                    if (entry.customer && !dashboardData.customerMap[funnel]) {
+                        dashboardData.customerMap[funnel] = entry.customer;
                     }
                     breakdown[monthIdx].data[funnel] += count;
                     breakdown[monthIdx].total = (breakdown[monthIdx].total || 0) + count;
