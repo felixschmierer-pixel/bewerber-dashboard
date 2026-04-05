@@ -1142,6 +1142,48 @@
         let customerDetailMonthTo = -1;
         let manualApplicants = {};
 
+        const NOTION_CUSTOMER_MAP = {
+            'Autohaus Komet GmbH': '18a3477ebcf1801f84d2ecd563510e60',
+            'Autohaus MOSIG GmbH': 'a611197fde3b45799131899637534d06',
+            'B.O.E. TECHNIK Service': '1ac3477ebcf180f38444c5f8cbad82f7',
+            'Berger-Consult GmbH': '2ab3477ebcf1808ebef5fa1be12956ce',
+            'Caravan Daalmann GmbH': '2c33477ebcf180b790b2de1939f7be21',
+            'DS Heizung und Sanitär GmbH': '2373477ebcf180f9ac9cd5f3741dcafd',
+            'Elektro Kerkemeier': '25d3477ebcf180f78f40e6ce2dd38052',
+            'Freizeit-Center Albrecht GmbH': '2153477ebcf180069c00e08881e43563',
+            'Gewerbe-Brandschutz-Keller GmbH': '2633477ebcf1808a9812c73d3a4e14fe',
+            'Jockel Industriemontagen GmbH': '2b83477ebcf180d9b625c2056c34b31c',
+            'Karl Stahl Bedachungen GmbH': '1e03477ebcf1807080aac70a40cec26d',
+            'Kehrein & Kubanek': '2093477ebcf180a4a693f67db4831480',
+            'Kurt Buck Baugesellschaft': '21b3477ebcf18002a5dbd0824487139f',
+            'KW Möbel A. Karmann GmbH & Co. KG': '24e3477ebcf18011bf1ef223b5436269',
+            'metallbau Heimsch GmbH': '27f3477ebcf180f8aa2bf221d947a49e',
+            'MINERALplus STORK': '2013477ebcf180d695e2e2d061b73525',
+            'Oswald Kleinhenz GmbH & Co. KG': '28e3477ebcf1802cac0ced337a1c7463',
+            'Riediger Hallenmontagen GmbH': '22b3477ebcf180a78b58c65413b182a4',
+            'RS Radiology Support': '25e3477ebcf1800e8203d93699bbdbad',
+            'Schleusner Tor- & Antriebstechnik': '1ec3477ebcf1808e8920eacd2d8d35be',
+            'Servicetechniker Kältetechnik': '2d23477ebcf180dbb2f9caa477d53b88',
+            'Steinhauser e.K.': '1c03477ebcf180809eaad6554302723e',
+            'Winter Gartenbau GmbH': '1d03477ebcf18027a68ef880ec487e6b',
+            'Gaugele GmbH': '2d23477ebcf180dbb2f9caa477d53b88'
+        };
+
+        function getNotionUrl(customerName) {
+            for (const [key, id] of Object.entries(NOTION_CUSTOMER_MAP)) {
+                if (customerName.includes(key) || key.includes(customerName)) {
+                    return 'https://www.notion.so/' + id;
+                }
+            }
+            const lower = customerName.toLowerCase();
+            for (const [key, id] of Object.entries(NOTION_CUSTOMER_MAP)) {
+                const words = key.toLowerCase().split(/\s+/);
+                const matchCount = words.filter(w => w.length > 3 && lower.includes(w)).length;
+                if (matchCount >= 2) return 'https://www.notion.so/' + id;
+            }
+            return null;
+        }
+
         const TABS = [
             { id: 'overview', label: 'Übersicht' },
             { id: 'today', label: 'Heute' },
@@ -1332,6 +1374,30 @@
             });
         }
 
+        function getTabTitle(tabId) {
+            const now = new Date();
+            const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+            const dayNames = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+            const fmt = (d) => `${dayNames[d.getDay()]}, ${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()}`;
+
+            if (tabId === 'today') return `Heute (${fmt(now)})`;
+            if (tabId === 'yesterday') {
+                const y = new Date(now); y.setDate(y.getDate() - 1);
+                return `Gestern (${fmt(y)})`;
+            }
+            if (tabId === 'week') {
+                const start = new Date(now); start.setDate(start.getDate() - start.getDay() + 1);
+                const end = new Date(start); end.setDate(end.getDate() + 6);
+                return `Woche (${start.getDate()}.${start.getMonth()+1}. bis ${end.getDate()}.${end.getMonth()+1}.)`;
+            }
+            if (tabId === 'month') return `Monat (${monthNames[now.getMonth()]} ${now.getFullYear()})`;
+            if (tabId === 'monthly') {
+                const prevName = monthNames[(now.getMonth() + 11) % 12];
+                return `Monatsvergleich (${prevName} vs. ${monthNames[now.getMonth()]})`;
+            }
+            return TABS.find(t => t.id === tabId)?.label || '';
+        }
+
         function switchTab(tabId) {
             currentTab = tabId;
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -1345,8 +1411,7 @@
             const activeNav = document.querySelector(`.nav-item[data-tab="${tabId}"]`);
             if (activeNav) activeNav.classList.add('active');
 
-            const tabLabel = TABS.find(t => t.id === tabId)?.label || '';
-            document.getElementById('pageTitle').textContent = tabLabel;
+            document.getElementById('pageTitle').textContent = getTabTitle(tabId);
 
             renderTab(tabId);
         }
@@ -1517,12 +1582,21 @@
 
             const totalApplicants = getTotalApplicants();
 
+            const now = new Date();
+            const kpiMonthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+            const todayStr = `${now.getDate()}.${now.getMonth()+1}.`;
+            const yest = new Date(now); yest.setDate(yest.getDate() - 1);
+            const yesterdayStr = `${yest.getDate()}.${yest.getMonth()+1}.`;
+            const weekStart = new Date(now); weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+            const weekStr = `${weekStart.getDate()}.${weekStart.getMonth()+1}. bis ${now.getDate()}.${now.getMonth()+1}.`;
+            const monthStr = kpiMonthNames[now.getMonth()] + ' ' + now.getFullYear();
+
             const kpiData = [
                 { label: 'Bewerber insgesamt', value: totalApplicants, change: 0, changeType: '', highlight: true },
-                { label: 'Heute', value: todayTotal, change: change24h, changeType: 'vs gestern' },
-                { label: 'Gestern', value: yesterdayTotal, change: changeWeek, changeType: 'vs Durchschnitt' },
-                { label: 'Woche', value: weekTotal, change: 0, changeType: '' },
-                { label: 'Monat', value: monthTotal, change: 0, changeType: '' },
+                { label: `Heute (${todayStr})`, value: todayTotal, change: change24h, changeType: 'vs gestern' },
+                { label: `Gestern (${yesterdayStr})`, value: yesterdayTotal, change: changeWeek, changeType: 'vs Durchschnitt' },
+                { label: `Woche (${weekStr})`, value: weekTotal, change: 0, changeType: '' },
+                { label: `Monat (${monthStr})`, value: monthTotal, change: 0, changeType: '' },
                 { label: 'Durchschnitt pro Tag', value: avgPerDay, change: 0, changeType: '' },
                 { label: 'Aktive Kampagnen', value: activeCampaigns, change: 0, changeType: '' },
                 { label: 'Alarme', value: alertsCount, change: 0, changeType: '' }
@@ -1551,7 +1625,23 @@
             let rankingHtml = renderRankingCard(`Beste Kampagnen (${currentMonthName})`, bestCampaigns)
                 + renderRankingCard(`Beste Kampagnen (${prevMonthName})`, prevMonthCampaigns);
 
-            kpis.innerHTML = kpiData.map(kpi => `
+            const activeAlerts = calculateAlerts();
+            const alertKpiHtml = alertsCount > 0
+                ? '<div class="kpi-card" style="border: 1px solid var(--color-danger);">' +
+                    '<div class="kpi-label">Alarme</div>' +
+                    '<div class="kpi-value" style="color: var(--color-danger);">' + alertsCount + '</div>' +
+                    '<div style="margin-top: 6px;">' +
+                    activeAlerts.slice(0, 5).map(a =>
+                        `<div style="font-size: 11px; padding: 2px 0; color: ${a.severity === 'critical' ? 'var(--color-danger)' : 'var(--color-warning)'};">${a.customer} (${a.daysSince}T)</div>`
+                    ).join('') +
+                    (activeAlerts.length > 5 ? `<div style="font-size: 10px; color: var(--text-muted);">+ ${activeAlerts.length - 5} weitere</div>` : '') +
+                    '</div></div>'
+                : '<div class="kpi-card">' +
+                    '<div class="kpi-label">Alarme</div>' +
+                    '<div class="kpi-value" style="color: var(--color-success);">0</div>' +
+                    '</div>';
+
+            kpis.innerHTML = kpiData.filter(k => k.label !== 'Alarme').map(kpi => `
                 <div class="kpi-card" ${kpi.highlight ? 'style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(218, 33, 53, 0.08));"' : ''}>
                     <div class="kpi-label">${kpi.label}</div>
                     <div class="kpi-value" ${kpi.highlight ? 'style="color: var(--text-primary); font-size: 32px;"' : ''}>${kpi.value}</div>
@@ -1564,7 +1654,7 @@
                         </div>
                     ` : ''}
                 </div>
-            `).join('') + rankingHtml;
+            `).join('') + alertKpiHtml + rankingHtml;
         }
 
         function renderAlertPanel() {
@@ -1692,7 +1782,11 @@
 
                 if (severity !== 'good') {
                     const dismissed = dismissedAlerts[funnel];
-                    if (dismissed && dismissed.severity === severity) return;
+                    if (dismissed) {
+                        const dismissDate = new Date(dismissed.date);
+                        const daysSinceDismiss = Math.floor((new Date() - dismissDate) / (1000 * 60 * 60 * 24));
+                        if (daysSinceDismiss < 7) return;
+                    }
                     alerts.push({
                         funnel,
                         customer: dashboardData.customerMap[funnel] || funnel,
@@ -1893,6 +1987,8 @@
             const data = dashboardData[dayKey] || {};
             const total = currentClient ? getFilteredValue(data) : (getFilteredValue(data) || dashboardData[dayKey + 'Total'] || 0);
             const totalApplicants = getTotalApplicants();
+            const dayLabel = dayKey === 'today' ? 'heute' : 'gestern';
+            const campaignsWithApplicants = Object.entries(data).filter(([k, v]) => v > 0).length;
 
             let html = `
                 <div class="kpi-grid">
@@ -1901,18 +1997,23 @@
                         <div class="kpi-value" style="color: var(--text-primary); font-size: 32px;">${totalApplicants}</div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-label">Bewerber ${dayKey === 'today' ? 'heute' : 'gestern'}</div>
+                        <div class="kpi-label">Bewerber ${dayLabel}</div>
                         <div class="kpi-value">${total}</div>
                     </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Aktive Kampagnen ${dayLabel}</div>
+                        <div class="kpi-value">${campaignsWithApplicants}</div>
+                    </div>
                 </div>
-                <div class="section-title">Nach Kampagne</div>
+                <div class="section-title">Nach Kunde</div>
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>Kampagne</th>
+                                <th>Kunde</th>
+                                <th>Position / Kampagne</th>
                                 <th>Bewerber</th>
-                                <th>Prozentanteil</th>
+                                <th>Anteil</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1920,28 +2021,34 @@
 
             const rows = Object.entries(data)
                 .filter(([key, val]) => {
+                    if (val <= 0) return false;
+                    if (isInternalCampaign(key)) return false;
                     if (!currentClient) return true;
                     return (dashboardData.customerMap[key] || key) === currentClient;
                 })
-                .sort((a, b) => b[1] - a[1]);
+                .map(([funnel, count]) => ({ funnel, count, customer: dashboardData.customerMap[funnel] || funnel }))
+                .sort((a, b) => a.customer.localeCompare(b.customer) || b.count - a.count);
 
-            rows.forEach(([funnel, count]) => {
-                const pct = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
-                html += `
+            let lastCust = '';
+            rows.forEach(row => {
+                const pct = total > 0 ? ((row.count / total) * 100).toFixed(1) : 0;
+                const sep = lastCust && lastCust !== row.customer ? '<tr style="height: 8px; border: none;"><td colspan="4" style="border: none; padding: 0; background: transparent;"></td></tr>' : '';
+                lastCust = row.customer;
+                html += sep + `
                     <tr>
-                        <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${(dashboardData.customerMap[funnel] || funnel).replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; cursor: pointer; font-weight: 600;">${dashboardData.customerMap[funnel] || funnel}</a></td>
-                        <td><strong>${count}</strong></td>
+                        <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${row.customer.replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; cursor: pointer; font-weight: 600;">${row.customer}</a></td>
+                        <td style="font-size: 12px; color: var(--text-muted);">${row.funnel}</td>
+                        <td><strong>${row.count}</strong></td>
                         <td>${pct}%</td>
                     </tr>
                 `;
             });
 
-            html += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
+            if (rows.length === 0) {
+                html += '<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-muted);">Keine Bewerber in diesem Zeitraum</td></tr>';
+            }
 
+            html += '</tbody></table></div>';
             container.innerHTML = html;
         }
 
@@ -1950,6 +2057,7 @@
             const totalKey = periodKey === 'thisWeek' ? 'weekTotal' : 'monthTotal';
             const total = currentClient ? getFilteredValue(data) : (getFilteredValue(data) || dashboardData[totalKey] || 0);
             const totalApplicants = getTotalApplicants();
+            const campaignsWithApplicants = Object.entries(data).filter(([k, v]) => v > 0).length;
 
             let html = `
                 <div class="kpi-grid">
@@ -1958,18 +2066,23 @@
                         <div class="kpi-value" style="color: var(--text-primary); font-size: 32px;">${totalApplicants}</div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-label">Bewerber ${label.toLowerCase()}</div>
+                        <div class="kpi-label">Bewerber diese ${label}</div>
                         <div class="kpi-value">${total}</div>
                     </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Aktive Kampagnen</div>
+                        <div class="kpi-value">${campaignsWithApplicants}</div>
+                    </div>
                 </div>
-                <div class="section-title">Nach Kampagne</div>
+                <div class="section-title">Nach Kunde</div>
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>Kampagne</th>
+                                <th>Kunde</th>
+                                <th>Position / Kampagne</th>
                                 <th>Bewerber</th>
-                                <th>Prozentanteil</th>
+                                <th>Anteil</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1977,28 +2090,34 @@
 
             const rows = Object.entries(data)
                 .filter(([key, val]) => {
+                    if (val <= 0) return false;
+                    if (isInternalCampaign(key)) return false;
                     if (!currentClient) return true;
                     return (dashboardData.customerMap[key] || key) === currentClient;
                 })
-                .sort((a, b) => b[1] - a[1]);
+                .map(([funnel, count]) => ({ funnel, count, customer: dashboardData.customerMap[funnel] || funnel }))
+                .sort((a, b) => a.customer.localeCompare(b.customer) || b.count - a.count);
 
-            rows.forEach(([funnel, count]) => {
-                const pct = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
-                html += `
+            let lastCust = '';
+            rows.forEach(row => {
+                const pct = total > 0 ? ((row.count / total) * 100).toFixed(1) : 0;
+                const sep = lastCust && lastCust !== row.customer ? '<tr style="height: 8px; border: none;"><td colspan="4" style="border: none; padding: 0; background: transparent;"></td></tr>' : '';
+                lastCust = row.customer;
+                html += sep + `
                     <tr>
-                        <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${(dashboardData.customerMap[funnel] || funnel).replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; cursor: pointer; font-weight: 600;">${dashboardData.customerMap[funnel] || funnel}</a></td>
-                        <td><strong>${count}</strong></td>
+                        <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${row.customer.replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; cursor: pointer; font-weight: 600;">${row.customer}</a></td>
+                        <td style="font-size: 12px; color: var(--text-muted);">${row.funnel}</td>
+                        <td><strong>${row.count}</strong></td>
                         <td>${pct}%</td>
                     </tr>
                 `;
             });
 
-            html += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
+            if (rows.length === 0) {
+                html += '<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-muted);">Keine Bewerber in diesem Zeitraum</td></tr>';
+            }
 
+            html += '</tbody></table></div>';
             container.innerHTML = html;
         }
 
@@ -2612,6 +2731,7 @@
                     </div>
                     <button onclick="customerDetailMonthFrom=-1;customerDetailMonthTo=-1;selectedDetailFunnel='';renderTab('customerDetail')"
                         style="padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-hover); color: var(--text-primary); cursor: pointer; font-size: 13px;">Filter Reset</button>
+                    ${(() => { const nUrl = getNotionUrl(customer); return nUrl ? '<a href="' + nUrl + '" target="_blank" style="padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); text-decoration: none; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">In Notion öffnen ↗</a>' : ''; })()}
                 </div>
 
                 <div class="kpi-grid">
@@ -2982,12 +3102,30 @@
                     <div class="instruction-section">
                         <div class="instruction-title">Kampagnen Alarm System</div>
                         <div class="instruction-text">
-                            Das System warnt Sie automatisch, wenn eine Kampagne keine Bewerbungen erhält:
+                            Das System warnt automatisch, wenn eine aktive Kampagne keine Bewerbungen erhält. Alarme erscheinen in der Übersicht im "Kampagnen Alarm" Bereich und in der Alarme KPI Karte.
                         </div>
                         <ul style="list-style: none; margin: 10px 0; color: var(--text-secondary); font-size: 14px;">
-                            <li style="margin: 8px 0;"><span style="color: var(--color-success);">Gruen:</span> Bewerbung innerhalb der letzten 4 Tage</li>
-                            <li style="margin: 8px 0;"><span style="color: var(--color-warning);">Gelb:</span> 5 bis 10 Tage ohne Bewerbungen</li>
-                            <li style="margin: 8px 0;"><span style="color: var(--color-danger);">Rot:</span> 10+ Tage ohne Bewerbungen</li>
+                            <li style="margin: 8px 0;"><span style="color: var(--color-success);">Grün (kein Alarm):</span> Bewerbung innerhalb der letzten 4 Tage</li>
+                            <li style="margin: 8px 0;"><span style="color: var(--color-warning);">Gelb (Warnung):</span> 5 bis 10 Tage ohne Bewerbungen</li>
+                            <li style="margin: 8px 0;"><span style="color: var(--color-danger);">Rot (Kritisch):</span> Mehr als 10 Tage ohne Bewerbungen</li>
+                        </ul>
+                        <div class="instruction-text" style="margin-top: 8px;">
+                            <strong>Alarm wegdrücken:</strong> Klicke auf das X neben einem Alarm. Der Alarm wird für 7 Tage ausgeblendet. Danach erscheint er automatisch erneut, falls weiterhin keine Bewerbung eingegangen ist. Pausierte, besetzte oder deaktivierte Kampagnen lösen keine Alarme aus.
+                        </div>
+                    </div>
+
+                    <div class="instruction-section">
+                        <div class="instruction-title">Bewerber manuell nachtragen</div>
+                        <div class="instruction-text">
+                            Falls Bewerber eingegangen sind, bevor der Webhook eingerichtet war, können diese manuell nachgetragen werden.
+                        </div>
+                        <ul style="list-style: none; margin: 10px 0; color: var(--text-secondary); font-size: 14px;">
+                            <li style="margin: 8px 0;"><strong>Schritt 1:</strong> Klicke auf "+ Manuell nachtragen" in der Übersicht unter "Aktuelle Bewerber"</li>
+                            <li style="margin: 8px 0;"><strong>Schritt 2a (bestehende Kampagne):</strong> Wähle im Dropdown eine existierende Kampagne aus. Die Bewerber werden direkt dort zugeordnet.</li>
+                            <li style="margin: 8px 0;"><strong>Schritt 2b (neue Kampagne):</strong> Gib einen Kampagnennamen ein und wähle den Kunden aus dem Dropdown. Trage Anzahl und Datum der Bewerbung ein.</li>
+                            <li style="margin: 8px 0;"><strong>Automatische Zuordnung:</strong> Wenn später ein Webhook Funnel mit ähnlichem Namen eingeht, werden die manuellen Bewerber automatisch zugeordnet (intelligenter Wortabgleich). Die manuelle Kampagne verschwindet dann und die Bewerber zählen zum echten Funnel.</li>
+                            <li style="margin: 8px 0;"><strong>Manuelle Zuordnung:</strong> In der Liste der manuellen Einträge kannst du über das Ketten Symbol einen manuellen Eintrag einem echten Webhook Funnel zuweisen.</li>
+                            <li style="margin: 8px 0;"><strong>Erinnerung:</strong> Kampagnen die nur manuell existieren (kein Webhook) lösen nach 7 Tagen eine Erinnerung aus mit dem Hinweis "Webhook eingerichtet?"</li>
                         </ul>
                     </div>
 
