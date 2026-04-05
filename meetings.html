@@ -408,24 +408,39 @@
             font-weight: 600;
         }
 
-        .badge-kundengespräch {
+        .badge-update_meeting {
             background: rgba(59, 130, 246, 0.2);
             color: #3b82f6;
         }
 
-        .badge-vorqualifizierung {
+        .badge-onboarding {
             background: rgba(16, 185, 129, 0.2);
             color: #10b981;
         }
 
-        .badge-upsell {
+        .badge-vertiefungsgespraech {
+            background: rgba(234, 179, 8, 0.2);
+            color: #eab308;
+        }
+
+        .badge-kickoff {
             background: rgba(168, 85, 247, 0.2);
             color: #a855f7;
         }
 
-        .badge-internes {
+        .badge-intern {
             background: rgba(148, 163, 184, 0.2);
             color: #94a3b8;
+        }
+
+        .badge-besprechung {
+            background: rgba(249, 115, 22, 0.2);
+            color: #f97316;
+        }
+
+        .badge-telefonat {
+            background: rgba(6, 182, 212, 0.2);
+            color: #06b6d4;
         }
 
         .meeting-summary {
@@ -696,10 +711,13 @@
                                 <label class="form-label">Meeting Typ</label>
                                 <select id="typeInput" class="form-select" required>
                                     <option value="">Typ auswählen</option>
-                                    <option value="kundengespräch">Kundengespräch</option>
-                                    <option value="vorqualifizierung">Bewerber Vorqualifizierung</option>
-                                    <option value="upsell">Upsell Gespräch</option>
-                                    <option value="internes">Internes Meeting</option>
+                                    <option value="update_meeting">Update Meeting</option>
+                                    <option value="onboarding">Onboarding</option>
+                                    <option value="vertiefungsgespraech">Vertiefungsgespräch</option>
+                                    <option value="kickoff">Kickoff Meeting</option>
+                                    <option value="intern">Intern Meeting</option>
+                                    <option value="besprechung">Besprechung</option>
+                                    <option value="telefonat">Telefonat / Call</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -734,10 +752,13 @@
                         <span class="filter-label">Typ:</span>
                         <select id="filterType" class="filter-input">
                             <option value="">Alle Typen</option>
-                            <option value="kundengespräch">Kundengespräch</option>
-                            <option value="vorqualifizierung">Bewerber Vorqualifizierung</option>
-                            <option value="upsell">Upsell Gespräch</option>
-                            <option value="internes">Internes Meeting</option>
+                            <option value="update_meeting">Update Meeting</option>
+                            <option value="onboarding">Onboarding</option>
+                            <option value="vertiefungsgespraech">Vertiefungsgespräch</option>
+                            <option value="kickoff">Kickoff Meeting</option>
+                            <option value="intern">Intern Meeting</option>
+                            <option value="besprechung">Besprechung</option>
+                            <option value="telefonat">Telefonat / Call</option>
                         </select>
                     </div>
                 </div>
@@ -770,10 +791,13 @@
                 <div class="form-group">
                     <label class="form-label">Meeting Typ</label>
                     <select id="editType" class="form-select" required>
-                        <option value="kundengespräch">Kundengespräch</option>
-                        <option value="vorqualifizierung">Bewerber Vorqualifizierung</option>
-                        <option value="upsell">Upsell Gespräch</option>
-                        <option value="internes">Internes Meeting</option>
+                        <option value="update_meeting">Update Meeting</option>
+                        <option value="onboarding">Onboarding</option>
+                        <option value="vertiefungsgespraech">Vertiefungsgespräch</option>
+                        <option value="kickoff">Kickoff Meeting</option>
+                        <option value="intern">Intern Meeting</option>
+                        <option value="besprechung">Besprechung</option>
+                        <option value="telefonat">Telefonat / Call</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -836,19 +860,31 @@
 
             // Typ Mapping
             const typMap = {
-                'Update Meeting': 'kundengespräch',
-                'Kundengespräch': 'kundengespräch',
-                'Kick Off': 'kundengespräch',
-                'Strategieberatung': 'kundengespräch',
-                'Bewerber Vorqualifizierung': 'vorqualifizierung',
-                'Internes Meeting': 'internes'
+                'Update Meeting': 'update_meeting',
+                'Update': 'update_meeting',
+                'Onboarding': 'onboarding',
+                'Vertiefungsgespräch': 'vertiefungsgespraech',
+                'Vertiefung': 'vertiefungsgespraech',
+                'Kickoff Meeting': 'kickoff',
+                'Kickoff': 'kickoff',
+                'Kick Off': 'kickoff',
+                'Kick-Off': 'kickoff',
+                'Intern Meeting': 'intern',
+                'Internes Meeting': 'intern',
+                'Intern': 'intern',
+                'Besprechung': 'besprechung',
+                'Strategieberatung': 'besprechung',
+                'Kundengespräch': 'update_meeting',
+                'Telefonat': 'telefonat',
+                'Call': 'telefonat',
+                'Anruf': 'telefonat'
             };
 
             return {
                 id: 'api_' + (row.meeting_id || row.id || Math.random().toString(36).substr(2)),
                 customer: row.kunde || row.titel || 'Unbekannt',
                 date: dateFormatted,
-                type: typMap[row.typ] || 'kundengespräch',
+                type: typMap[row.typ] || 'update_meeting',
                 summary: row.zusammenfassung || '',
                 actionItems: row.action_items ? row.action_items.split('\n').filter(t => t.trim()).map(t => ({ text: t.trim(), completed: false })) : [],
                 recordingLink: row.recording_link || null,
@@ -949,12 +985,15 @@
         // Get type badge configuration
         function getTypeBadge(type) {
             const badges = {
-                'kundengespräch': { label: 'Kundengespräch', class: 'badge-kundengespräch' },
-                'vorqualifizierung': { label: 'Bewerber Vorqualifizierung', class: 'badge-vorqualifizierung' },
-                'upsell': { label: 'Upsell Gespräch', class: 'badge-upsell' },
-                'internes': { label: 'Internes Meeting', class: 'badge-internes' }
+                'update_meeting': { label: 'Update Meeting', class: 'badge-update_meeting' },
+                'onboarding': { label: 'Onboarding', class: 'badge-onboarding' },
+                'vertiefungsgespraech': { label: 'Vertiefungsgespräch', class: 'badge-vertiefungsgespraech' },
+                'kickoff': { label: 'Kickoff Meeting', class: 'badge-kickoff' },
+                'intern': { label: 'Intern Meeting', class: 'badge-intern' },
+                'besprechung': { label: 'Besprechung', class: 'badge-besprechung' },
+                'telefonat': { label: 'Telefonat / Call', class: 'badge-telefonat' }
             };
-            return badges[type] || { label: type, class: 'badge-internes' };
+            return badges[type] || { label: type, class: 'badge-intern' };
         }
 
         // Format date for display
@@ -1030,8 +1069,8 @@
                 return matchesSearch && matchesType;
             });
 
-            // Sort by date descending
-            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+            // Sort by date ascending (nächster Termin oben)
+            filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
 
             const container = document.getElementById('meetingsList');
 
