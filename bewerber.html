@@ -486,7 +486,7 @@
         }
 
         tr.customer-separator {
-            height: 8px;
+            height: 24px;
             border: none;
             background: transparent;
             pointer-events: none;
@@ -496,6 +496,7 @@
             border: none;
             padding: 0;
             background: transparent;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
         }
 
         tr.customer-separator:hover {
@@ -1205,6 +1206,269 @@
             'Steinhauser e.K.': '1c03477ebcf180809eaad6554302723e',
             'Winter Gartenbau GmbH': '1d03477ebcf18027a68ef880ec487e6b',
             'Gaugele GmbH': '2d23477ebcf180dbb2f9caa477d53b88'
+        };
+
+        const NOTION_CUSTOMER_DATA = {
+            'Autohaus Komet GmbH': {
+                address: 'Zeppelinstraße 7, 71083 Herrenberg',
+                phone: '016094480049',
+                emails: ['a.kreissl@komet-autohaus.de', 'j.schrade@komet-autohaus.de'],
+                website: 'https://www.mazda-autohaus-komet-herrenberg.de/',
+                contact: 'Andreas Kreißl',
+                employees: 7,
+                positions: ['Kfz-Mechatroniker (m/w/d)', 'Automobilverkäufer mit Perspektive auf Geschäftsführung']
+            },
+            'Caravan Daalmann GmbH': {
+                address: 'Einsteinstraße 10, 49835 Wietmarschen-Lohne',
+                phone: '05908 9190018',
+                emails: ['jobs@daalmann.de', 'buchhaltung@daalman.de'],
+                website: 'https://daalmann.de/',
+                contact: 'Udo Daalmann, Geschäftsführer',
+                employees: 14,
+                positions: ['Kundenberater Reisemobilvermietung', 'Fahrzeugwäscher/-aufbereiter', '(Junior-)Verkäufer für Freizeitfahrzeuge', 'Mitarbeiter Fahrzeug-Innenreinigung', 'Caravan-Service-Techniker', 'Serviceannehmer']
+            },
+            'Lenk GmbH & Co. KG': {
+                address: 'Industriestr. 9, 85609 Aschheim',
+                phone: '089/149091-0',
+                emails: ['personal@lenk-kg.de'],
+                website: 'https://lenk-gmbh.de/',
+                contact: 'Christian Hummel',
+                employees: 30,
+                positions: ['Dachdeckervorarbeiter', 'Dachdeckerfacharbeiter']
+            },
+            'Malermeister Mede': {
+                address: 'Olnhauser Str. 44, 70437 Stuttgart',
+                phone: '+49 173 6399067',
+                emails: ['info@malermeistermede.de'],
+                website: 'https://www.malermeistermede.de/',
+                contact: 'Ramjan Mede',
+                employees: null,
+                positions: []
+            },
+            'Kaupp Ausbau & Fassade GmbH': {
+                address: 'Schiltachstr. 28, 78713 Schramberg',
+                phone: '07422928350',
+                emails: ['job@kaupp-farbe.de'],
+                website: 'https://www.kaupp-farbe.de/',
+                contact: 'Benjamin Elter',
+                employees: 65,
+                positions: ['Stuckateur', 'Trockenbauer']
+            },
+            'holz+form (Inh. Stefan Roland Weiß)': {
+                address: 'Ludwigstraße 3, 67165 Waldsee',
+                phone: '06236.41200',
+                emails: ['stefan.weiss@holzplusform.de'],
+                website: 'https://www.holzplusform.de/',
+                contact: 'Stefan Weiß',
+                employees: 4,
+                positions: ['Schreiner']
+            },
+            'IG Maurer mbH': {
+                address: 'Gautinger Straße 34, 82131 Stockdorf',
+                phone: '089 15981291',
+                emails: ['bewerbung@ig-maurer.de'],
+                website: 'https://www.ig-maurer.de/',
+                contact: 'Wolfgang Maurer',
+                employees: 7,
+                positions: ['Bauingenieur']
+            },
+            'Gaugele GmbH': {
+                address: 'Cuxhaven / Iffeldorf (2 Standorte)',
+                phone: '',
+                emails: ['h.jun@gaugele.de', 'c.seebeck@gaugele.de'],
+                website: 'https://www.gaugele.com/',
+                contact: 'Hermann Gaugele Junior',
+                employees: 80,
+                positions: ['Mechatroniker für Kältetechnik']
+            },
+            'Noack Elektrotechnik': {
+                address: 'Brückenstr. 13, 73333 Gingen an der Fils',
+                phone: '',
+                emails: ['j.noack@noack-elektrotechnik.de'],
+                website: 'https://www.noack-elektrotechnik.de/',
+                contact: 'Jörg Noack',
+                employees: 10,
+                positions: ['Zählermonteur']
+            },
+            'Jockel Industriemontagen GmbH': {
+                address: 'Osterwiesenstraße 18/1, 73574 Iggingen',
+                phone: '07175/92329-0',
+                emails: ['b.jockel@jockel-gmbh.de'],
+                website: 'https://jockel-gmbh.de/',
+                contact: 'Bianca Jockel',
+                employees: 11,
+                positions: ['Mitarbeiter Kundendienst und Montage']
+            },
+            'Berger-Consult GmbH': {
+                address: 'Ziegelei 22, 89542 Herbrechtingen',
+                phone: '+49732441285',
+                emails: ['info@berger-solutions.biz'],
+                website: 'https://www.berger-solutions.biz/',
+                contact: 'Mario Berger',
+                employees: 10,
+                positions: ['Anwendungstechniker', 'Vertriebsmitarbeiter', 'Kaufmännische Bürokraft']
+            },
+            'Michael Kerkemeier - Elektro Kerkemeier': {
+                address: 'Bokeler Straße 53, 33397 Rietberg',
+                phone: '05244 401550',
+                emails: ['bewerbung@elektro-kerkemeier.de'],
+                website: 'http://www.elektro-kerkemeier.de',
+                contact: 'Frank Kerkemeier, Geschäftsführung',
+                employees: 30,
+                positions: ['Elektroniker für Energie- und Gebäudetechnik']
+            },
+            'Schreinerei Umgeher GmbH': {
+                address: 'Haderloh 2, 83547 Babenham',
+                phone: '08071/1250',
+                emails: ['info@umgeher.info'],
+                website: 'http://www.umgeher.info',
+                contact: 'Johannes Umgeher, Geschäftsführer',
+                employees: 10,
+                positions: ['Schreiner']
+            },
+            'Antonio Trezza GmbH': {
+                address: 'Platanenstr. 11, 68535 Edingen-Neckarhausen',
+                phone: '',
+                emails: [],
+                website: 'http://www.auto-trezza.de/',
+                contact: '',
+                employees: null,
+                positions: ['Kfz-Mechatroniker']
+            },
+            'AutoPRO Harald Kohlmann Inh. Daniel Kohlmann': {
+                address: '',
+                phone: '+49 4298 2857',
+                emails: ['info@kfz-kohlmann.de'],
+                website: 'https://www.kfz-kohlmann.de/',
+                contact: 'Daniel Kohlmann (KFZ), Sabine Kohlmann (Büro)',
+                employees: 8,
+                positions: ['Kfz-Mechatroniker', 'Bürokraft', 'KFZ Annahmemeister']
+            },
+            'Baumgart OHG Karosserie & Lack': {
+                address: '',
+                phone: '+49 35058 41306',
+                emails: ['info@auto-baumgart.de'],
+                website: 'https://www.auto-baumgart.de/',
+                contact: '',
+                employees: null,
+                positions: ['Karosserie- und Fahrzeugbauer', 'Mechatroniker']
+            },
+            'ToJa Nutzfahrzeuge GmbH & Co KG': {
+                address: 'Zwickauer Str. 131, 09366 Stollberg',
+                phone: '03732 648844',
+                emails: ['info@toja-nfz.de'],
+                website: 'https://www.toja-nfz.de/',
+                contact: 'Sven Beyer',
+                employees: 15,
+                positions: ['Elektrofachkraft für Fahrzeugtechnik', 'KfZ-Mechaniker']
+            },
+            'Rottenfusser KFZ GmbH & Co. KG': {
+                address: 'Penzinger Str. 97, 83435 Bad Reichenhall',
+                phone: '08651 5007',
+                emails: ['kontakt@rottenfusser.de'],
+                website: 'https://www.rottenfusser.de/',
+                contact: 'Johann Rottenfusser',
+                employees: 12,
+                positions: ['KfZ-Mechaniker']
+            },
+            'Autohaus MOSIG GmbH': {
+                address: '',
+                phone: '',
+                emails: [],
+                website: '',
+                contact: '',
+                employees: null,
+                positions: ['Serviceberater', 'Verkäufer']
+            },
+            'Freizeit-Center Albrecht GmbH': {
+                address: '',
+                phone: '',
+                emails: [],
+                website: '',
+                contact: '',
+                employees: null,
+                positions: ['Serviceassistenz', 'Serviceannehmer']
+            },
+            'Autohaus Pestuka GmbH': {
+                address: '',
+                phone: '',
+                emails: [],
+                website: '',
+                contact: '',
+                employees: null,
+                positions: []
+            },
+            'Vision Us': {
+                address: '',
+                phone: '',
+                emails: [],
+                website: '',
+                contact: '',
+                employees: null,
+                positions: []
+            },
+            'iHA iHausAutomation GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'GZ-Abdichtungstechnik GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Hi-Te GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'BAU-REAL-PMG PROJEKTMANAGEMENT-GESELLSCHAFT mbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Oswald Kleinhenz GmbH & Co. KG': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'GME-Gesellschaft für Meß- Steuerungs- Regelungs- und Elektrotechnik mbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'metallbau Heimsch GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'OWS Service für Schienenfahrzeuge GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Meter-Q Solutions GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Timm Kfz-Reparatur GbR': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'MultiProfil GmbH & Co KG': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Gewerbe-Brandschutz-Keller GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Autohaus Pfützenreuter GmbH & Co. KG': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'RS Radiology Support GmbH & Co. KG': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'MF Fassadentechnik GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Herrmann Holzbau nach Maß GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Jussen Metallverarbeitung GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'KW Möbel A. Karmann GmbH & Co. KG': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Linse GmbH & Co KG': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Vilgis Bauunternehmen GmbH & Co KG': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'DS Heizung und Sanitär GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Klaus Wenck GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Strehlaer Baumaschinen GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'WAGNER Strassen-, Tief- & Rohrleitungsbau GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Riediger Hallenmontagen GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Autohaus Forker GmbH & Co. KG': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Opel Autohaus Götzinger e.K.': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Kurt Buck Baugesellschaft GmbH & Co. KG': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Bike Market GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Kfz-Service-GmbH-Zwochau': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Oberlausitzer Elektro-Schaltgeräte GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Kehrein & Kubanek Kälte- und Klimatechnik GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Knipschild Reisen Verkehrsbetriebe GmbH & Co. KG': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Lässle Bau GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'H. Barthau Fahrzeugtechnik': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'MINERALplus STORK GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Heer GmbH & Co. KG': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Weiser Fahrzeugtechnik GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'e.f Schleusner Tor- & Antriebstechnik GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Holzbau Manufaktur Petersohn': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Lassen KFZ-Service e.K.': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Blank & Thielen Dach GbR': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Karl Stahl Bedachungen GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'VELTEN GmbH Veranstaltung & Technik': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'eba-consult GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Hausmann Industrie-Pumpen GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'N.O. Bau GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Winter Gartenbau GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            "Dall'Armi Ingenieure GmbH": { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Horst Saur Kraftfahrzeuge GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'ACR Autoteile GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'W & S Krantechnik GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Integralbau GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Auto Steinhauser e.K.': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Aluminium Halbzeuge und Zuschnitte GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Peter Engelmeier Garten- und Landschaftsbau': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'B.O.E. TECHNIK Service GmbH & Co. KG': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Hartmann Ingenieure GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Schmalzgruber Möbelmanufaktur GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Die Oldtimermanufaktur GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'Auto Mahal GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] },
+            'KFZ-Zulassungsdienst Marisol GmbH': { address: '', phone: '', emails: [], website: '', contact: '', employees: null, positions: [] }
         };
 
         function getNotionUrl(customerName) {
@@ -2138,7 +2402,7 @@
                                     <a href="#" onclick="event.preventDefault(); navigateToCustomer('${c.name.replace(/'/g, "\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 600; font-size: 14px;">${c.name}</a>
                                     <span style="font-size: 20px; font-weight: 700;">${c.count}</span>
                                 </div>
-                                <div style="font-size: 11px; color: var(--text-muted);">${c.funnels.join(', ')}</div>
+                                <div style="font-size: 11px; color: var(--text-muted);">${c.funnels.map((f, i) => (i + 1) + '. ' + f).join('<br>')}</div>
                             </div>
                         `).join('')}
                     </div>
@@ -2253,7 +2517,7 @@
                                     <a href="#" onclick="event.preventDefault(); navigateToCustomer('${c.name.replace(/'/g, "\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 600; font-size: 14px;">${c.name}</a>
                                     <span style="font-size: 20px; font-weight: 700;">${c.count}</span>
                                 </div>
-                                <div style="font-size: 11px; color: var(--text-muted);">${c.funnels.join(', ')}</div>
+                                <div style="font-size: 11px; color: var(--text-muted);">${c.funnels.map((f, i) => (i + 1) + '. ' + f).join('<br>')}</div>
                             </div>
                         `).join('')}
                     </div>
@@ -2383,7 +2647,7 @@
                                     <a href="#" onclick="event.preventDefault(); navigateToCustomer('${c.name.replace(/'/g, "\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 600; font-size: 14px;">${c.name}</a>
                                     <span style="font-size: 20px; font-weight: 700;">${c.count}</span>
                                 </div>
-                                <div style="font-size: 11px; color: var(--text-muted);">${c.funnels.join(', ')}</div>
+                                <div style="font-size: 11px; color: var(--text-muted);">${c.funnels.map((f, i) => (i + 1) + '. ' + f).join('<br>')}</div>
                             </div>
                         `).join('')}
                     </div>
@@ -2449,30 +2713,55 @@
             const currentTotal = currentMonth.total || 0;
             const prevTotal = prevMonth.total || 0;
             const changePct = prevTotal > 0 ? Math.round(((currentTotal - prevTotal) / prevTotal) * 100) : 0;
-            const avgPerDayCurrentMonth = Math.round(currentTotal / 30);
-            const avgPerDayPrevMonth = Math.round(prevTotal / 30);
 
+            // Kundenvergleich (alle Kunden, kein Limit)
             const customerMap = {};
             [currentMonth, prevMonth].forEach((month, idx) => {
                 Object.entries(month.data || {}).forEach(([funnel, count]) => {
                     if (isInternalCampaign(funnel)) return;
                     const customer = dashboardData.customerMap[funnel] || funnel;
-                    if (!customerMap[customer]) customerMap[customer] = { prev: 0, current: 0 };
+                    if (!customerMap[customer]) customerMap[customer] = { prev: 0, current: 0, funnels: {} };
                     if (idx === 0) customerMap[customer].current += count;
                     else customerMap[customer].prev += count;
+                    if (!customerMap[customer].funnels[funnel]) customerMap[customer].funnels[funnel] = { prev: 0, current: 0 };
+                    if (idx === 0) customerMap[customer].funnels[funnel].current += count;
+                    else customerMap[customer].funnels[funnel].prev += count;
                 });
             });
 
-            const comparisonData = Object.entries(customerMap)
+            const customerData = Object.entries(customerMap)
                 .map(([name, data]) => ({
                     name,
                     prev: data.prev,
                     current: data.current,
-                    diff: data.current - data.prev
+                    diff: data.current - data.prev,
+                    funnels: data.funnels
                 }))
                 .filter(r => r.current > 0 || r.prev > 0)
-                .sort((a, b) => b.current - a.current)
-                .slice(0, 10);
+                .sort((a, b) => b.current - a.current);
+
+            // Kampagnenvergleich (alle Kampagnen)
+            const campaignData = [];
+            const allFunnels = new Set([...Object.keys(currentMonth.data || {}), ...Object.keys(prevMonth.data || {})]);
+            allFunnels.forEach(funnel => {
+                if (isInternalCampaign(funnel)) return;
+                const cur = (currentMonth.data || {})[funnel] || 0;
+                const prev = (prevMonth.data || {})[funnel] || 0;
+                if (cur > 0 || prev > 0) {
+                    campaignData.push({
+                        funnel,
+                        customer: dashboardData.customerMap[funnel] || funnel,
+                        current: cur,
+                        prev: prev,
+                        diff: cur - prev
+                    });
+                }
+            });
+            campaignData.sort((a, b) => a.customer.localeCompare(b.customer) || b.current - a.current);
+
+            const curLabel = formatMonthLabel(currentMonth.label);
+            const prevLabel = formatMonthLabel(prevMonth.label);
+            const chartCustomers = customerData.slice(0, 15);
 
             let html = `
                 <div class="kpi-grid">
@@ -2481,11 +2770,11 @@
                         <div class="kpi-value" style="color: var(--text-primary); font-size: 32px;">${totalApplicants}</div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-label">Bewerber ${formatMonthLabel(currentMonth.label)}</div>
+                        <div class="kpi-label">Bewerber ${curLabel}</div>
                         <div class="kpi-value">${currentTotal}</div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-label">Bewerber ${formatMonthLabel(prevMonth.label)}</div>
+                        <div class="kpi-label">Bewerber ${prevLabel}</div>
                         <div class="kpi-value">${prevTotal}</div>
                     </div>
                     <div class="kpi-card">
@@ -2493,32 +2782,95 @@
                         <div class="kpi-value" style="color: ${changePct >= 0 ? 'var(--color-success)' : 'var(--color-danger)'};">${changePct >= 0 ? '+' : ''}${changePct}%</div>
                     </div>
                 </div>
-                ${comparisonData.length > 0 ? `
-                    <div class="section-title">Monatlicher Vergleich nach Kunde</div>
-                    <canvas id="monthlyCompareChart" style="max-height: 300px; margin-bottom: 24px;"></canvas>
-                ` : `<div style="text-align: center; padding: 40px; color: var(--text-muted);">Keine Vergleichsdaten vorhanden</div>`}
+
+                ${chartCustomers.length > 0 ? `
+                    <div class="section-title">Vergleich nach Kunde</div>
+                    <canvas id="monthlyCompareChart" style="max-height: 350px; margin-bottom: 24px;"></canvas>
+                ` : ''}
+
+                <div class="section-title">Alle Kunden im Vergleich (${curLabel} vs. ${prevLabel})</div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; margin-bottom: 32px;">
+                    ${customerData.map(c => {
+                        const diffColor = c.diff > 0 ? 'var(--color-success)' : c.diff < 0 ? 'var(--color-danger)' : 'var(--text-muted)';
+                        const diffPct = c.prev > 0 ? Math.round(((c.current - c.prev) / c.prev) * 100) : (c.current > 0 ? 100 : 0);
+                        const funnelEntries = Object.entries(c.funnels).sort((a, b) => b[1].current - a[1].current);
+                        return `
+                        <div style="background: var(--bg-card); border-radius: 10px; padding: 16px; border: 1px solid var(--border-color);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <a href="#" onclick="event.preventDefault(); navigateToCustomer('${c.name.replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 700; font-size: 14px;">${c.name}</a>
+                                <span style="color: ${diffColor}; font-weight: 700; font-size: 13px;">${c.diff > 0 ? '+' : ''}${c.diff} (${c.diff >= 0 ? '+' : ''}${diffPct}%)</span>
+                            </div>
+                            <div style="display: flex; gap: 16px; margin-bottom: 10px;">
+                                <div style="font-size: 12px; color: var(--text-muted);">${curLabel}: <strong style="color: var(--text-primary);">${c.current}</strong></div>
+                                <div style="font-size: 12px; color: var(--text-muted);">${prevLabel}: <strong style="color: var(--text-primary);">${c.prev}</strong></div>
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 8px;">
+                                ${funnelEntries.map((fe, i) => {
+                                    const fd = fe[1].current - fe[1].prev;
+                                    const fdColor = fd > 0 ? 'var(--color-success)' : fd < 0 ? 'var(--color-danger)' : 'var(--text-muted)';
+                                    return '<div style="display: flex; justify-content: space-between; padding: 2px 0;">' +
+                                        '<span>' + (i + 1) + '. ' + fe[0] + '</span>' +
+                                        '<span style="white-space: nowrap;">' + fe[1].current + ' / ' + fe[1].prev + ' <span style="color: ' + fdColor + ';">(' + (fd > 0 ? '+' : '') + fd + ')</span></span>' +
+                                    '</div>';
+                                }).join('')}
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+
+                <div class="section-title">Kampagnenvergleich (${curLabel} vs. ${prevLabel})</div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Kunde</th>
+                                <th>Kampagne</th>
+                                <th>${curLabel}</th>
+                                <th>${prevLabel}</th>
+                                <th>Differenz</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(() => {
+                                let lastCust = '';
+                                return campaignData.map(r => {
+                                    const sep = lastCust && lastCust !== r.customer ? '<tr class="customer-separator"><td colspan="5"></td></tr>' : '';
+                                    lastCust = r.customer;
+                                    const diffColor = r.diff > 0 ? 'var(--color-success)' : r.diff < 0 ? 'var(--color-danger)' : 'var(--text-muted)';
+                                    return sep + '<tr>' +
+                                        '<td><a href="#" onclick="event.preventDefault(); navigateToCustomer(\'' + r.customer.replace(/'/g, "\\'") + '\')" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">' + r.customer + '</a></td>' +
+                                        '<td style="font-size: 12px; color: var(--text-muted);">' + r.funnel + '</td>' +
+                                        '<td><strong>' + r.current + '</strong></td>' +
+                                        '<td>' + r.prev + '</td>' +
+                                        '<td style="color: ' + diffColor + '; font-weight: 600;">' + (r.diff > 0 ? '+' : '') + r.diff + '</td>' +
+                                    '</tr>';
+                                }).join('');
+                            })()}
+                        </tbody>
+                    </table>
+                </div>
             `;
-            
+
             container.innerHTML = html;
-            
-            if (comparisonData.length > 0) {
+
+            if (chartCustomers.length > 0) {
                 if (charts.monthlyCompareChart) charts.monthlyCompareChart.destroy();
                 const ctx = document.getElementById('monthlyCompareChart').getContext('2d');
                 charts.monthlyCompareChart = new Chart(ctx, {
                     type: 'bar',
                     data: {
-                        labels: comparisonData.map(d => d.name),
+                        labels: chartCustomers.map(d => d.name),
                         datasets: [
                             {
-                                label: formatMonthLabel(prevMonth.label),
-                                data: comparisonData.map(d => d.prev),
+                                label: prevLabel,
+                                data: chartCustomers.map(d => d.prev),
                                 backgroundColor: '#E84A5C',
                                 borderRadius: 8,
                                 borderSkipped: false
                             },
                             {
-                                label: formatMonthLabel(currentMonth.label),
-                                data: comparisonData.map(d => d.current),
+                                label: curLabel,
+                                data: chartCustomers.map(d => d.current),
                                 backgroundColor: '#DA2135',
                                 borderRadius: 8,
                                 borderSkipped: false
@@ -2818,6 +3170,9 @@ function renderCampaignsTab(container) {
                         </span>
                     </div>
                     <div class="cost-row">
+                        <button onclick="openBudgetTimeline('${cost.funnel}')" style="padding: 4px 10px; border-radius: 6px; border: 1px solid var(--color-primary); background: transparent; color: var(--text-primary); cursor: pointer; font-size: 12px; width: 100%;">Budget bearbeiten</button>
+                    </div>
+                    <div class="cost-row">
                         <span class="cost-label">Geschätztes Budget (30 Tage)</span>
                         <span class="cost-value">${cost.estimatedSpend.toLocaleString('de-DE')} Euro</span>
                     </div>
@@ -2859,6 +3214,86 @@ function renderCampaignsTab(container) {
             const budgetPerDay = costSettings.budgetPerDay || 20;
             const totalBudget = budgetPerDay * 30 * dashboardData.clients.length;
             return totalBudget / totalMonthlyApplicants;
+        }
+
+        function getEffectiveBudget(funnel, dateStr) {
+            const timeline = costSettings.budgetTimeline?.[funnel] || [];
+            if (timeline.length === 0) {
+                return costSettings.individualBudgets?.[funnel] || costSettings.budgetPerDay || 20;
+            }
+            const dateObj = new Date(dateStr);
+            let effectiveBudget = costSettings.individualBudgets?.[funnel] || costSettings.budgetPerDay || 20;
+            for (const entry of timeline) {
+                const entryDate = new Date(entry.from);
+                if (entryDate <= dateObj) {
+                    effectiveBudget = entry.budget;
+                }
+            }
+            return effectiveBudget;
+        }
+
+        function getMonthlySpend(funnel, year, month) {
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            let totalSpend = 0;
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+                const budget = getEffectiveBudget(funnel, dateStr);
+                totalSpend += budget;
+            }
+            return totalSpend;
+        }
+
+        function openBudgetTimeline(funnel) {
+            const timeline = costSettings.budgetTimeline?.[funnel] || [];
+            const defaultBudget = costSettings.individualBudgets?.[funnel] || costSettings.budgetPerDay || 20;
+            let html = '<div style="padding: 12px; background: var(--bg-darker); border-radius: 8px; max-width: 400px;">';
+            html += '<div style="color: var(--text-muted); font-size: 11px; margin-bottom: 8px; text-transform: uppercase;">Budget Timeline Eintraege</div>';
+
+            timeline.forEach((entry, idx) => {
+                html += `
+                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px; padding: 6px; background: var(--bg-card); border-radius: 6px; font-size: 12px;">
+                        <input type="date" value="${entry.from}" onchange="updateTimelineEntry('${funnel}', ${idx}, 'from', this.value)" style="padding: 2px 4px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 11px; flex: 1;">
+                        <input type="number" value="${entry.budget}" min="1" onchange="updateTimelineEntry('${funnel}', ${idx}, 'budget', this.value)" style="padding: 2px 4px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-darker); color: var(--text-primary); font-size: 11px; width: 50px;"> Euro
+                        <button onclick="removeTimelineEntry('${funnel}', ${idx})" style="padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-danger); background: transparent; color: var(--color-danger); cursor: pointer; font-size: 11px;">X</button>
+                    </div>
+                `;
+            });
+
+            html += `
+                <button onclick="addTimelineEntry('${funnel}')" style="width: 100%; padding: 6px; margin-top: 8px; border-radius: 6px; border: 1px solid var(--color-primary); background: transparent; color: var(--text-primary); cursor: pointer; font-size: 12px;">+ Eintrag hinzufuegen</button>
+            </div>`;
+
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;';
+            modal.innerHTML = `<div style="background: var(--bg-card); border-radius: 10px; padding: 16px; border: 1px solid var(--border-color);">${html}<button onclick="this.closest('div').remove()" style="width: 100%; padding: 8px; margin-top: 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-hover); color: var(--text-primary); cursor: pointer; font-size: 13px;">Fertig</button></div>`;
+            document.body.appendChild(modal);
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+        }
+
+        function addTimelineEntry(funnel) {
+            if (!costSettings.budgetTimeline) costSettings.budgetTimeline = {};
+            if (!costSettings.budgetTimeline[funnel]) costSettings.budgetTimeline[funnel] = [];
+            const today = new Date().toISOString().split('T')[0];
+            costSettings.budgetTimeline[funnel].push({ from: today, budget: costSettings.budgetPerDay || 20 });
+            saveLocalStorage();
+            openBudgetTimeline(funnel);
+        }
+
+        function updateTimelineEntry(funnel, idx, field, value) {
+            if (!costSettings.budgetTimeline || !costSettings.budgetTimeline[funnel]) return;
+            if (field === 'budget') {
+                costSettings.budgetTimeline[funnel][idx].budget = parseFloat(value);
+            } else {
+                costSettings.budgetTimeline[funnel][idx].from = value;
+            }
+            saveLocalStorage();
+        }
+
+        function removeTimelineEntry(funnel, idx) {
+            if (!costSettings.budgetTimeline || !costSettings.budgetTimeline[funnel]) return;
+            costSettings.budgetTimeline[funnel].splice(idx, 1);
+            saveLocalStorage();
+            openBudgetTimeline(funnel);
         }
 
         function navigateToCustomer(customerName) {
@@ -3010,6 +3445,24 @@ function renderCampaignsTab(container) {
             const funnelOptions = `<option value="">Alle Kampagnen (${allFunnels.length})</option>` +
                 allFunnels.map(f => `<option value="${f}" ${f === selectedDetailFunnel ? 'selected' : ''}>${f}</option>`).join('');
 
+            const notionData = NOTION_CUSTOMER_DATA[customer];
+            const notionDataSection = notionData ? `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                    <div style="background: var(--bg-card); border-radius: 10px; padding: 16px; border: 1px solid var(--border-color);">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Kontaktdaten</div>
+                        ${notionData.address ? `<div style="margin-bottom: 8px;"><span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 2px;">Adresse</span><span style="font-size: 13px; color: var(--text-secondary);">${notionData.address}</span></div>` : ''}
+                        ${notionData.phone ? `<div style="margin-bottom: 8px;"><span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 2px;">Telefon</span><a href="tel:${notionData.phone}" style="font-size: 13px; color: var(--text-primary); text-decoration: none;">${notionData.phone}</a></div>` : ''}
+                        ${notionData.emails && notionData.emails.length > 0 ? `<div style="margin-bottom: 8px;"><span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 2px;">E-Mails</span>${notionData.emails.map(e => `<a href="mailto:${e}" style="font-size: 13px; color: var(--text-primary); text-decoration: none; display: block;">${e}</a>`).join('')}</div>` : ''}
+                        ${notionData.website ? `<div style="margin-bottom: 8px;"><span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 2px;">Webseite</span><a href="${notionData.website}" target="_blank" style="font-size: 13px; color: var(--text-primary); text-decoration: none; word-break: break-all;">${notionData.website}</a></div>` : ''}
+                        ${notionData.contact ? `<div><span style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 2px;">Ansprechpartner</span><span style="font-size: 13px; color: var(--text-secondary);">${notionData.contact}</span></div>` : ''}
+                    </div>
+                    <div style="background: var(--bg-card); border-radius: 10px; padding: 16px; border: 1px solid var(--border-color);">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Offene Stellen bei Notion</div>
+                        ${notionData.positions && notionData.positions.length > 0 ? `<div style="display: flex; flex-direction: column; gap: 6px;">${notionData.positions.map(p => `<span style="font-size: 13px; color: var(--text-secondary); padding: 6px 10px; background: var(--bg-darker); border-radius: 6px;">${p}</span>`).join('')}</div>` : '<span style="font-size: 13px; color: var(--text-muted);">Keine Stellen vorhanden</span>'}
+                    </div>
+                </div>
+            ` : '<div style="background: var(--bg-card); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border-color); margin-bottom: 20px; color: var(--text-muted); font-size: 13px;">Keine Notion-Daten verfuegbar</div>';
+
             let html = `
                 <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 20px;">
                     <div>
@@ -3040,6 +3493,8 @@ function renderCampaignsTab(container) {
                         style="padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-hover); color: var(--text-primary); cursor: pointer; font-size: 13px;">Filter Reset</button>
                     ${(() => { const nUrl = getNotionUrl(customer); return nUrl ? '<a href="' + nUrl + '" target="_blank" style="padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); text-decoration: none; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">In Notion öffnen ↗</a>' : ''; })()}
                 </div>
+
+                ${notionDataSection}
 
                 <div class="kpi-grid">
                     <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(218, 33, 53, 0.08));">
