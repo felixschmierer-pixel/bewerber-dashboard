@@ -1496,7 +1496,7 @@
             kpis.innerHTML = kpiData.map(kpi => `
                 <div class="kpi-card" ${kpi.highlight ? 'style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(218, 33, 53, 0.08));"' : ''}>
                     <div class="kpi-label">${kpi.label}</div>
-                    <div class="kpi-value" ${kpi.highlight ? 'style="color: var(--color-primary-light); font-size: 32px;"' : ''}>${kpi.value}</div>
+                    <div class="kpi-value" ${kpi.highlight ? 'style="color: var(--text-primary); font-size: 32px;"' : ''}>${kpi.value}</div>
                     ${kpi.change !== 0 ? `
                         <div class="kpi-change ${parseInt(kpi.change) >= 0 ? 'positive' : 'negative'}">
                             <span class="trend-arrow ${parseInt(kpi.change) > 0 ? 'up' : parseInt(kpi.change) < 0 ? 'down' : 'stable'}">
@@ -1764,7 +1764,7 @@
                         ${filtered.length === 0 ? '<tr><td colspan="8" style="text-align: center; padding: 20px; color: var(--text-muted);">Keine Kampagnen mit diesem Status</td></tr>' : ''}
                         ${filtered.map(row => `
                             <tr class="${campaignStatuses[row.funnel] === 'paused' ? 'paused' : campaignStatuses[row.funnel] === 'filled' ? 'filled' : ''}">
-                                <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${row.customer.replace(/'/g, "\\'")}')" style="color: var(--color-primary-light); text-decoration: none; cursor: pointer;">${row.customer}</a></td>
+                                <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${row.customer.replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; cursor: pointer; font-weight: 600;">${row.customer}</a></td>
                                 <td style="font-size: 12px; color: var(--text-muted);">${row.funnel}</td>
                                 <td>
                                     <div class="health-indicator">
@@ -1772,7 +1772,7 @@
                                         ${row.healthStatus === 'good' ? 'Gut' : row.healthStatus === 'warning' ? 'Warnung' : 'Kritisch'}
                                     </div>
                                 </td>
-                                <td style="font-weight: 700; color: var(--color-primary-light);">${row.totalAll}</td>
+                                <td style="font-weight: 700; color: var(--text-primary);">${row.totalAll}</td>
                                 <td>${row.weekData}</td>
                                 <td><strong>${row.monthData}</strong></td>
                                 <td>
@@ -1817,7 +1817,7 @@
                     <div class="applicant-info">
                         <div class="applicant-name">${app.name}</div>
                         <div class="applicant-details">
-                            <a href="#" onclick="event.preventDefault(); navigateToCustomer('${(dashboardData.customerMap[app.client] || app.client).replace(/'/g, "\\'")}')" style="color: var(--color-primary-light); text-decoration: none;">${dashboardData.customerMap[app.client] || app.client}</a>
+                            <a href="#" onclick="event.preventDefault(); navigateToCustomer('${(dashboardData.customerMap[app.client] || app.client).replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">${dashboardData.customerMap[app.client] || app.client}</a>
                             <span>${app.city}</span>
                             <span>${app.client}</span>
                         </div>
@@ -1840,7 +1840,7 @@
                 <div class="kpi-grid">
                     <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(218, 33, 53, 0.08));">
                         <div class="kpi-label">Bewerber insgesamt</div>
-                        <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${totalApplicants}</div>
+                        <div class="kpi-value" style="color: var(--text-primary); font-size: 32px;">${totalApplicants}</div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-label">Bewerber ${dayKey === 'today' ? 'heute' : 'gestern'}</div>
@@ -1871,7 +1871,7 @@
                 const pct = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
                 html += `
                     <tr>
-                        <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${(dashboardData.customerMap[funnel] || funnel).replace(/'/g, "\\'")}')" style="color: var(--color-primary-light); text-decoration: none; cursor: pointer;">${dashboardData.customerMap[funnel] || funnel}</a></td>
+                        <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${(dashboardData.customerMap[funnel] || funnel).replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; cursor: pointer; font-weight: 600;">${dashboardData.customerMap[funnel] || funnel}</a></td>
                         <td><strong>${count}</strong></td>
                         <td>${pct}%</td>
                     </tr>
@@ -1897,7 +1897,7 @@
                 <div class="kpi-grid">
                     <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(218, 33, 53, 0.08));">
                         <div class="kpi-label">Bewerber insgesamt</div>
-                        <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${totalApplicants}</div>
+                        <div class="kpi-value" style="color: var(--text-primary); font-size: 32px;">${totalApplicants}</div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-label">Bewerber ${label.toLowerCase()}</div>
@@ -1928,7 +1928,7 @@
                 const pct = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
                 html += `
                     <tr>
-                        <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${(dashboardData.customerMap[funnel] || funnel).replace(/'/g, "\\'")}')" style="color: var(--color-primary-light); text-decoration: none; cursor: pointer;">${dashboardData.customerMap[funnel] || funnel}</a></td>
+                        <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${(dashboardData.customerMap[funnel] || funnel).replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; cursor: pointer; font-weight: 600;">${dashboardData.customerMap[funnel] || funnel}</a></td>
                         <td><strong>${count}</strong></td>
                         <td>${pct}%</td>
                     </tr>
@@ -1989,7 +1989,7 @@
                 <div class="kpi-grid">
                     <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(218, 33, 53, 0.08));">
                         <div class="kpi-label">Bewerber insgesamt</div>
-                        <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${totalApplicants}</div>
+                        <div class="kpi-value" style="color: var(--text-primary); font-size: 32px;">${totalApplicants}</div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-label">Bewerber ${formatMonthLabel(currentMonth.label) || 'Monat'}</div>
@@ -2020,8 +2020,8 @@
                             ${rows.map(r => {
                                 const pct = filteredTotal > 0 ? ((r.count / filteredTotal) * 100).toFixed(1) : 0;
                                 return `<tr>
-                                    <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${(dashboardData.customerMap[r.funnel] || r.funnel).replace(/'/g, "\\'")}')" style="color: var(--color-primary-light); text-decoration: none;">${dashboardData.customerMap[r.funnel] || r.funnel}</a></td>
-                                    <td style="font-weight: 700; color: var(--color-primary-light);">${r.totalAll}</td>
+                                    <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${(dashboardData.customerMap[r.funnel] || r.funnel).replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">${dashboardData.customerMap[r.funnel] || r.funnel}</a></td>
+                                    <td style="font-weight: 700; color: var(--text-primary);">${r.totalAll}</td>
                                     <td><strong>${r.count}</strong></td>
                                     ${prevMonth ? `<td>${r.prevCount}</td><td style="color: ${r.diff > 0 ? 'var(--color-success)' : r.diff < 0 ? 'var(--color-danger)' : 'var(--text-muted)'};">${r.diff > 0 ? '+' : ''}${r.diff}</td>` : ''}
                                     <td>${pct}%</td>
@@ -2041,7 +2041,7 @@
                 <div class="kpi-grid">
                     <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(218, 33, 53, 0.08));">
                         <div class="kpi-label">Bewerber insgesamt</div>
-                        <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${totalApplicants}</div>
+                        <div class="kpi-value" style="color: var(--text-primary); font-size: 32px;">${totalApplicants}</div>
                     </div>
                 </div>
                 <div class="chart-container">
@@ -2102,7 +2102,7 @@
                 <div class="kpi-grid" style="margin-bottom: 16px;">
                     <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(218, 33, 53, 0.08));">
                         <div class="kpi-label">Bewerber insgesamt</div>
-                        <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${totalApplicants}</div>
+                        <div class="kpi-value" style="color: var(--text-primary); font-size: 32px;">${totalApplicants}</div>
                     </div>
                 </div>
                 <div class="campaign-counter">
@@ -2168,6 +2168,7 @@
                 if (custA > custB) return 1;
                 return a.localeCompare(b);
             });
+            let lastCustomer = '';
             const rows = sortedClients.map(funnel => {
                 const customer = dashboardData.customerMap[funnel] || funnel;
                 const status = campaignStatuses[funnel] || 'active';
@@ -2181,9 +2182,11 @@
 
                 const history = (costSettings.statusHistory || {})[funnel] || [];
                 const escapedFunnel = funnel.replace(/'/g, "\\'");
-                return `
+                const separator = lastCustomer && lastCustomer !== customer ? '<tr style="height: 12px; border: none;"><td colspan="8" style="border: none; padding: 0; background: transparent;"></td></tr>' : '';
+                lastCustomer = customer;
+                return separator + `
                     <tr class="${status === 'paused' ? 'paused' : status === 'filled' ? 'filled' : status === 'stopped' ? 'filled' : ''}">
-                        <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${customer.replace(/'/g, "\\'")}')" style="color: var(--color-primary-light); text-decoration: none;">${customer}</a></td>
+                        <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${customer.replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">${customer}</a></td>
                         <td style="font-size: 12px; color: var(--text-muted);">${funnel}</td>
                         <td>
                             <span class="status-badge status-${status}">
@@ -2252,7 +2255,7 @@
                 <div class="kpi-grid">
                     <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(218, 33, 53, 0.08));">
                         <div class="kpi-label">Bewerber insgesamt</div>
-                        <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${getTotalApplicants()}</div>
+                        <div class="kpi-value" style="color: var(--text-primary); font-size: 32px;">${getTotalApplicants()}</div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-label">Gesamtbudget (30 Tage)</div>
@@ -2556,7 +2559,7 @@
                 <div class="kpi-grid">
                     <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(218, 33, 53, 0.08));">
                         <div class="kpi-label">Bewerber insgesamt</div>
-                        <div class="kpi-value" style="color: var(--color-primary-light); font-size: 32px;">${totalAllTime}</div>
+                        <div class="kpi-value" style="color: var(--text-primary); font-size: 32px;">${totalAllTime}</div>
                     </div>
                     <div class="kpi-card" style="border: 1px solid var(--color-info);">
                         <div class="kpi-label">Im Zeitraum</div>
@@ -2595,7 +2598,7 @@
                 ${bestFunnel ? `<div style="background: var(--bg-card); border-radius: 10px; padding: 14px 18px; border: 1px solid var(--border-color); margin-top: 16px; display: flex; align-items: center; gap: 12px;">
                     <span style="font-size: 20px;">&#127942;</span>
                     <div><span style="color: var(--text-muted); font-size: 13px;">Beste Kampagne im Zeitraum:</span>
-                    <strong style="color: var(--color-primary-light); margin-left: 6px;">${bestFunnel}</strong>
+                    <strong style="color: var(--text-primary); margin-left: 6px;">${bestFunnel}</strong>
                     <span style="color: var(--text-secondary); margin-left: 6px;">(${bestFunnelCount} Bewerber)</span></div>
                 </div>` : ''}
 
@@ -2719,7 +2722,7 @@
                     <tr>
                         <td style="max-width: 200px; cursor: pointer; color: ${fi === 0 && selectedDetailFunnel ? 'var(--color-primary-light)' : 'inherit'};" onclick="selectedDetailFunnel='${escapedFunnel}';renderTab('customerDetail')">${funnel}</td>
                         <td><span style="color: ${statusColors[status]}; font-weight: 600; font-size: 12px;">${statusLabels[status] || status}</span></td>
-                        <td style="font-weight: 700; color: var(--color-primary-light);">${funnelTotal}</td>
+                        <td style="font-weight: 700; color: var(--text-primary);">${funnelTotal}</td>
                         ${monthlyCounts.map(c => {
                             const intensity = c > 0 ? Math.min(0.6, (c / maxInFunnel) * 0.6) : 0;
                             const bgColor = c > 0 ? `rgba(99, 102, 241, ${intensity})` : 'transparent';
@@ -2739,7 +2742,7 @@
             html += `<tr style="border-top: 2px solid var(--color-primary); font-weight: 700;">
                 <td>Gesamt</td>
                 <td></td>
-                <td style="color: var(--color-primary-light);">${totalFiltered}</td>
+                <td style="color: var(--text-primary); font-weight: 700;">${totalFiltered}</td>
                 ${filteredBreakdown.map(m => {
                     let mTotal = 0;
                     funnels.forEach(f => { mTotal += (m.data || {})[f] || 0; });
