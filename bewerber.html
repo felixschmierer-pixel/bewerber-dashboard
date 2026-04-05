@@ -1532,6 +1532,7 @@
                                     <div class="alert-customer">${alert.customer}</div>
                                     <div class="alert-funnel">${alert.funnel}</div>
                                     <div class="alert-date">Letzte: ${alert.lastDate}</div>
+                                    ${alert.hint ? `<div style="font-size: 10px; color: var(--color-warning); font-weight: 600; margin-top: 2px;">&#9888; ${alert.hint}</div>` : ''}
                                 </div>
                                 <div class="alert-days">${alert.daysSince} Tage</div>
                                 <button class="alert-dismiss" onclick="dismissAlert('${alert.funnel}', '${alert.severity}')">X</button>
@@ -1540,6 +1541,24 @@
                     </div>
                 </div>
             `;
+        }
+
+        function getManualLastDate(funnel) {
+            let latestDate = null;
+            Object.entries(manualApplicants).forEach(([key, val]) => {
+                const [f] = key.split('|||');
+                if (f !== funnel) return;
+                const entry = typeof val === 'object' ? val : {};
+                if (entry.date) {
+                    const d = new Date(entry.date);
+                    if (!isNaN(d.getTime()) && (!latestDate || d > latestDate)) latestDate = d;
+                }
+            });
+            return latestDate;
+        }
+
+        function isManualOnlyCampaign(funnel) {
+            return Object.keys(manualApplicants).some(key => key.split('|||')[0] === funnel);
         }
 
         function calculateAlerts() {
@@ -1557,7 +1576,49 @@
 
                 const lastApp = dashboardData.recentApplicants.find(a => a.client === funnel)
                     || (dashboardData.lastApplicantByClient && dashboardData.lastApplicantByClient[funnel]);
-                const daysSince = lastApp ? calculateDaysSince(lastApp.date) : 999;
+
+                let daysSince;
+                let lastDate;
+                let isManual = false;
+
+                if (lastApp) {
+                    daysSince = calculateDaysSince(lastApp.date);
+                    lastDate = lastApp.date;
+                } else {
+                    // Manuelle Eintraege pruefen
+                    const manualDate = getManualLastDate(funnel);
+                    if (manualDate) {
+                        isManual = true;
+                        const now = new Date();
+                        daysSince = Math.floor((now - manualDate) / (1000 * 60 * 60 * 24));
+                        lastDate = manualDate.toLocaleDateString('de-DE');
+                    } else {
+                        daysSince = 999;
+                        lastDate = 'Keine';
+                    }
+                }
+
+                // Manuelle Kampagnen: Erinnerung alle 7 Tage (Webhook pruefen)
+                if (isManual && !lastApp) {
+                    if (daysSince >= 7) {
+                        const dismissed = dismissedAlerts[funnel];
+                        // Dismiss gilt nur 7 Tage bei manuellen Kampagnen
+                        if (dismissed) {
+                            const dismissDate = new Date(dismissed.date);
+                            const daysSinceDismiss = Math.floor((new Date() - dismissDate) / (1000 * 60 * 60 * 24));
+                            if (daysSinceDismiss < 7) return;
+                        }
+                        alerts.push({
+                            funnel,
+                            customer: dashboardData.customerMap[funnel] || funnel,
+                            lastDate: lastDate + ' (manuell)',
+                            daysSince,
+                            severity: 'warning',
+                            hint: 'Webhook eingerichtet?'
+                        });
+                    }
+                    return;
+                }
 
                 let severity = 'good';
                 if (daysSince > 10) severity = 'critical';
@@ -1569,7 +1630,7 @@
                     alerts.push({
                         funnel,
                         customer: dashboardData.customerMap[funnel] || funnel,
-                        lastDate: lastApp ? lastApp.date : 'Keine',
+                        lastDate,
                         daysSince,
                         severity
                     });
@@ -1648,10 +1709,16 @@
                 const weekData = getFilteredValue(data.thisWeek, funnel);
                 const lastApp = data.recentApplicants.find(a => a.client === funnel)
                     || (data.lastApplicantByClient && data.lastApplicantByClient[funnel]);
-                const daysSince = lastApp ? calculateDaysSince(lastApp.date) : '.';
+                let daysSince;
+                if (lastApp) {
+                    daysSince = calculateDaysSince(lastApp.date);
+                } else {
+                    const manualDate = getManualLastDate(funnel);
+                    daysSince = manualDate ? Math.floor((new Date() - manualDate) / (1000 * 60 * 60 * 24)) : '.';
+                }
 
                 let healthStatus = 'good';
-                if (daysSince > 10) healthStatus = 'danger';
+                if (daysSince === '.' || daysSince > 10) healthStatus = 'danger';
                 else if (daysSince >= 5) healthStatus = 'warning';
 
                 const dayOfMonth = new Date().getDate();
@@ -3230,8 +3297,91 @@
             loadData();
         }
 
+        function findMatchingFunnel(manualName, customerName) {
+            const clients = dashboardData.clients || [];
+            const customerMap = dashboardData.customerMap || {};
+            if (clients.length === 0) return null;
+
+            // Exakter Match
+            if (clients.includes(manualName)) return null; // kein Mapping noetig
+
+            const manualWords = manualName.toLowerCase().replace(/[^a-zäöüß0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+            if (manualWords.length === 0) return null;
+
+            let bestMatch = null;
+            let bestScore = 0;
+
+            clients.forEach(funnel => {
+                const funnelLower = funnel.toLowerCase();
+                const funnelCustomer = (customerMap[funnel] || '').toLowerCase();
+
+                // Wortbasiertes Matching: wie viele manuelle Woerter im echten Funnel vorkommen
+                let wordMatches = 0;
+                manualWords.forEach(w => {
+                    if (funnelLower.includes(w)) wordMatches++;
+                });
+                const wordScore = manualWords.length > 0 ? wordMatches / manualWords.length : 0;
+
+                // Kundenname Bonus: Wenn customerName angegeben und der echte Funnel dem gleichen Kunden gehoert
+                let customerBonus = 0;
+                if (customerName) {
+                    const custLower = customerName.toLowerCase();
+                    if (funnelCustomer === custLower || funnelLower.includes(custLower) || funnelCustomer.includes(custLower)) {
+                        customerBonus = 0.3;
+                    }
+                }
+
+                const totalScore = wordScore + customerBonus;
+
+                // Mindestens 50% der Woerter muessen matchen (oder Kunde passt + mind. 1 Wort)
+                if (totalScore > bestScore && (wordScore >= 0.5 || (customerBonus > 0 && wordMatches >= 1))) {
+                    bestScore = totalScore;
+                    bestMatch = funnel;
+                }
+            });
+
+            return bestScore >= 0.5 ? bestMatch : null;
+        }
+
+        function autoMatchManualApplicants() {
+            if (!dashboardData || !dashboardData.clients) return;
+            let changed = false;
+            const keysToProcess = Object.keys(manualApplicants);
+
+            keysToProcess.forEach(key => {
+                const val = manualApplicants[key];
+                const entry = typeof val === 'object' ? val : { count: val, customer: '', date: '', linkedTo: '' };
+                const [funnel, monthIdxStr] = key.split('|||');
+
+                // Nur neue/unverknuepfte Eintraege die nicht direkt einem existierenden Funnel entsprechen
+                if (dashboardData.clients.includes(funnel)) return;
+
+                const match = findMatchingFunnel(funnel, entry.customer);
+                if (match) {
+                    // Automatisch umhängen auf den echten Funnel
+                    const newKey = match + '|||' + monthIdxStr;
+                    if (manualApplicants[newKey]) {
+                        const existing = typeof manualApplicants[newKey] === 'object' ? manualApplicants[newKey] : { count: manualApplicants[newKey], customer: '', date: '', linkedTo: '' };
+                        existing.count += entry.count;
+                        manualApplicants[newKey] = existing;
+                    } else {
+                        manualApplicants[newKey] = { count: entry.count, customer: entry.customer, date: entry.date, linkedTo: '' };
+                    }
+                    delete manualApplicants[key];
+                    changed = true;
+                    console.log('[Auto Match] "' + funnel + '" automatisch zugeordnet zu "' + match + '"');
+                }
+            });
+
+            if (changed) saveLocalStorage();
+        }
+
         function applyManualApplicants() {
             if (!dashboardData || !dashboardData.monthlyBreakdown) return;
+
+            // Erst Auto Match versuchen
+            autoMatchManualApplicants();
+
             Object.entries(manualApplicants).forEach(([key, val]) => {
                 const entry = typeof val === 'object' ? val : { count: val, customer: '', date: '', linkedTo: '' };
                 const [funnel, monthIdxStr] = key.split('|||');
