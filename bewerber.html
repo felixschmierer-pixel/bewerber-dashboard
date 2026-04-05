@@ -1160,6 +1160,25 @@
         let customerDetailMonthTo = -1;
         let manualApplicants = {};
         let tabSearchQuery = '';
+        let _searchDebounceTimer = null;
+
+        // Korrektur: Manche Kampagnen liefern die Position statt den Firmennamen
+        const CUSTOMER_NAME_OVERRIDES = {
+            'Servicetechniker Kältetechnik': 'Gaugele GmbH',
+            'Servicetechniker Kaltetechnik': 'Gaugele GmbH',
+            'Servicetechniker K\u00e4ltetechnik': 'Gaugele GmbH'
+        };
+
+        function fixCustomerNames() {
+            if (!dashboardData.customerMap) return;
+            for (const [funnel, customer] of Object.entries(dashboardData.customerMap)) {
+                for (const [wrong, correct] of Object.entries(CUSTOMER_NAME_OVERRIDES)) {
+                    if (customer === wrong || customer.includes(wrong)) {
+                        dashboardData.customerMap[funnel] = correct;
+                    }
+                }
+            }
+        }
 
         const NOTION_CUSTOMER_MAP = {
             'Autohaus Komet GmbH': '18a3477ebcf1801f84d2ecd563510e60',
@@ -1455,6 +1474,7 @@
                 .then(data => {
                     dashboardData = fixUmlauts(data);
                     checkEncodingHealth(dashboardData);
+                    fixCustomerNames();
                     applyManualApplicants();
                     updateClientFilter();
                     const content = document.getElementById('contentArea');
@@ -1553,7 +1573,15 @@
 
         function filterCurrentTab(query) {
             tabSearchQuery = query.toLowerCase();
-            renderTab(currentTab);
+            clearTimeout(_searchDebounceTimer);
+            _searchDebounceTimer = setTimeout(() => {
+                const cursorPos = document.getElementById('tabSearch')?.selectionStart || 0;
+                renderTab(currentTab);
+                requestAnimationFrame(() => {
+                    const el = document.getElementById('tabSearch');
+                    if (el) { el.focus(); el.setSelectionRange(cursorPos, cursorPos); }
+                });
+            }, 300);
         }
 
         function renderOverview(container) {
@@ -2046,12 +2074,39 @@
             }).join('');
         }
 
+        let selectedMonthIdx = -1;
+
         function renderDayTab(container, dayKey) {
             const data = dashboardData[dayKey] || {};
             const total = currentClient ? getFilteredValue(data) : (getFilteredValue(data) || dashboardData[dayKey + 'Total'] || 0);
             const totalApplicants = getTotalApplicants();
             const dayLabel = dayKey === 'today' ? 'heute' : 'gestern';
             const campaignsWithApplicants = Object.entries(data).filter(([k, v]) => v > 0).length;
+
+            const customerMap = {};
+            Object.entries(data).forEach(([funnel, count]) => {
+                if (count <= 0 || isInternalCampaign(funnel)) return;
+                const customer = dashboardData.customerMap[funnel] || funnel;
+                if (!currentClient || customer === currentClient) {
+                    if (!customerMap[customer]) customerMap[customer] = { count: 0, funnels: [] };
+                    customerMap[customer].count += count;
+                    customerMap[customer].funnels.push(funnel);
+                }
+            });
+
+            let filteredCustomers = Object.entries(customerMap)
+                .map(([name, data]) => ({ name, ...data }))
+                .sort((a, b) => b.count - a.count);
+            
+            if (tabSearchQuery) {
+                const q = tabSearchQuery.toLowerCase();
+                filteredCustomers = filteredCustomers.filter(c => 
+                    c.name.toLowerCase().includes(q) || 
+                    c.funnels.some(f => f.toLowerCase().includes(q))
+                );
+            }
+
+            const topCustomers = filteredCustomers.slice(0, 10);
 
             let html = `
                 <div style="margin-bottom: 16px;">
@@ -2069,59 +2124,72 @@
                         <div class="kpi-value">${total}</div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-label">Aktive Kampagnen ${dayLabel}</div>
+                        <div class="kpi-label">Aktive Kampagnen</div>
                         <div class="kpi-value">${campaignsWithApplicants}</div>
                     </div>
                 </div>
-                <div class="section-title">Nach Kunde</div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Kunde</th>
-                                <th>Position / Kampagne</th>
-                                <th>Bewerber</th>
-                                <th>Anteil</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                ${topCustomers.length > 0 ? `
+                    <div class="section-title">Nach Kunde</div>
+                    <canvas id="dayChart" style="max-height: 280px; margin-bottom: 24px;"></canvas>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 16px;">
+                        ${topCustomers.map(c => `
+                            <div style="background: var(--bg-card); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border-color);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <a href="#" onclick="event.preventDefault(); navigateToCustomer('${c.name.replace(/'/g, "\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 600; font-size: 14px;">${c.name}</a>
+                                    <span style="font-size: 20px; font-weight: 700;">${c.count}</span>
+                                </div>
+                                <div style="font-size: 11px; color: var(--text-muted);">${c.funnels.join(', ')}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : `<div style="text-align: center; padding: 40px; color: var(--text-muted);">Keine Bewerber in diesem Zeitraum</div>`}
             `;
-
-            let rows = Object.entries(data)
-                .filter(([key, val]) => {
-                    if (val <= 0) return false;
-                    if (isInternalCampaign(key)) return false;
-                    if (!currentClient) {
-                        if (tabSearchQuery === '') return true;
-                        const customer = dashboardData.customerMap[key] || key;
-                        return customer.toLowerCase().includes(tabSearchQuery) || key.toLowerCase().includes(tabSearchQuery);
-                    }
-                    return (dashboardData.customerMap[key] || key) === currentClient;
-                })
-                .map(([funnel, count]) => ({ funnel, count, customer: dashboardData.customerMap[funnel] || funnel }))
-                .sort((a, b) => a.customer.localeCompare(b.customer) || b.count - a.count);
-
-            let lastCust = '';
-            rows.forEach(row => {
-                const pct = total > 0 ? ((row.count / total) * 100).toFixed(1) : 0;
-                const sep = lastCust && lastCust !== row.customer ? '<tr class="customer-separator"><td colspan="4"></td></tr>' : '';
-                lastCust = row.customer;
-                html += sep + `
-                    <tr>
-                        <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${row.customer.replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; cursor: pointer; font-weight: 600;">${row.customer}</a></td>
-                        <td style="font-size: 12px; color: var(--text-muted);">${row.funnel}</td>
-                        <td><strong>${row.count}</strong></td>
-                        <td>${pct}%</td>
-                    </tr>
-                `;
-            });
-
-            if (rows.length === 0) {
-                html += '<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-muted);">Keine Bewerber in diesem Zeitraum</td></tr>';
-            }
-
-            html += '</tbody></table></div>';
+            
             container.innerHTML = html;
+            
+            if (topCustomers.length > 0) {
+                if (charts.dayChart) charts.dayChart.destroy();
+                const ctx = document.getElementById('dayChart').getContext('2d');
+                charts.dayChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: topCustomers.map(c => c.name),
+                        datasets: [{
+                            label: 'Bewerber',
+                            data: topCustomers.map(c => c.count),
+                            backgroundColor: ['#DA2135', '#E84A5C', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#84cc16'],
+                            borderColor: '#DA2135',
+                            borderWidth: 0,
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                padding: 12,
+                                titleFont: { family: 'Poppins', size: 14 },
+                                bodyFont: { family: 'Poppins', size: 12 }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#d4d4d4', font: { family: 'Poppins' } }
+                            },
+                            y: {
+                                grid: { display: false },
+                                ticks: { color: '#d4d4d4', font: { family: 'Poppins', size: 12 } }
+                            }
+                        }
+                    }
+                });
+            }
         }
 
         function renderPeriodTab(container, periodKey, label) {
@@ -2131,7 +2199,36 @@
             const totalApplicants = getTotalApplicants();
             const campaignsWithApplicants = Object.entries(data).filter(([k, v]) => v > 0).length;
 
+            const customerMap = {};
+            Object.entries(data).forEach(([funnel, count]) => {
+                if (count <= 0 || isInternalCampaign(funnel)) return;
+                const customer = dashboardData.customerMap[funnel] || funnel;
+                if (!currentClient || customer === currentClient) {
+                    if (!customerMap[customer]) customerMap[customer] = { count: 0, funnels: [] };
+                    customerMap[customer].count += count;
+                    customerMap[customer].funnels.push(funnel);
+                }
+            });
+
+            let filteredCustomers = Object.entries(customerMap)
+                .map(([name, data]) => ({ name, ...data }))
+                .sort((a, b) => b.count - a.count);
+            
+            if (tabSearchQuery) {
+                const q = tabSearchQuery.toLowerCase();
+                filteredCustomers = filteredCustomers.filter(c => 
+                    c.name.toLowerCase().includes(q) || 
+                    c.funnels.some(f => f.toLowerCase().includes(q))
+                );
+            }
+
+            const topCustomers = filteredCustomers.slice(0, 10);
+            const chartTotal = topCustomers.reduce((s, c) => s + c.count, 0);
+
             let html = `
+                <div style="padding: 0 0 16px 0;">
+                    <input type="text" id="tabSearch" placeholder="Kunde oder Position durchsuchen..." value="${tabSearchQuery}" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-card); color: var(--text-primary); font-family: Poppins, sans-serif; font-size: 13px;" oninput="filterCurrentTab(this.value)" />
+                </div>
                 <div class="kpi-grid">
                     <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(218, 33, 53, 0.08));">
                         <div class="kpi-label">Bewerber insgesamt</div>
@@ -2146,62 +2243,65 @@
                         <div class="kpi-value">${campaignsWithApplicants}</div>
                     </div>
                 </div>
-                <div style="padding: 0 0 16px 0;">
-                    <input type="text" id="tabSearch" placeholder="Kunde oder Position durchsuchen..." value="${tabSearchQuery}" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-card); color: var(--text-primary); font-family: Poppins, sans-serif; font-size: 13px;" oninput="filterCurrentTab(this.value)" />
-                </div>
-                <div class="section-title">Nach Kunde</div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Kunde</th>
-                                <th>Position / Kampagne</th>
-                                <th>Bewerber</th>
-                                <th>Anteil</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                ${topCustomers.length > 0 ? `
+                    <div class="section-title">Nach Kunde</div>
+                    <canvas id="weekChart" style="max-height: 280px; margin-bottom: 24px;"></canvas>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 16px;">
+                        ${topCustomers.map(c => `
+                            <div style="background: var(--bg-card); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border-color);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <a href="#" onclick="event.preventDefault(); navigateToCustomer('${c.name.replace(/'/g, "\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 600; font-size: 14px;">${c.name}</a>
+                                    <span style="font-size: 20px; font-weight: 700;">${c.count}</span>
+                                </div>
+                                <div style="font-size: 11px; color: var(--text-muted);">${c.funnels.join(', ')}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : `<div style="text-align: center; padding: 40px; color: var(--text-muted);">Keine Bewerber in diesem Zeitraum</div>`}
             `;
-
-            const rows = Object.entries(data)
-                .filter(([key, val]) => {
-                    if (val <= 0) return false;
-                    if (isInternalCampaign(key)) return false;
-                    if (!currentClient) return true;
-                    return (dashboardData.customerMap[key] || key) === currentClient;
-                })
-                .map(([funnel, count]) => ({ funnel, count, customer: dashboardData.customerMap[funnel] || funnel }))
-                .sort((a, b) => a.customer.localeCompare(b.customer) || b.count - a.count)
-                .filter(row => {
-                    if (tabSearchQuery === '') return true;
-                    const query = tabSearchQuery.toLowerCase();
-                    return row.customer.toLowerCase().includes(query) || row.funnel.toLowerCase().includes(query);
-                });
-
-            let lastCust = '';
-            rows.forEach(row => {
-                const pct = total > 0 ? ((row.count / total) * 100).toFixed(1) : 0;
-                const sep = lastCust && lastCust !== row.customer ? '<tr class="customer-separator"><td colspan="4"></td></tr>' : '';
-                lastCust = row.customer;
-                html += sep + `
-                    <tr>
-                        <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${row.customer.replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; cursor: pointer; font-weight: 600;">${row.customer}</a></td>
-                        <td style="font-size: 12px; color: var(--text-muted);">${row.funnel}</td>
-                        <td><strong>${row.count}</strong></td>
-                        <td>${pct}%</td>
-                    </tr>
-                `;
-            });
-
-            if (rows.length === 0) {
-                html += '<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-muted);">Keine Bewerber in diesem Zeitraum</td></tr>';
-            }
-
-            html += '</tbody></table></div>';
+            
             container.innerHTML = html;
+            
+            if (topCustomers.length > 0) {
+                if (charts.weekChart) charts.weekChart.destroy();
+                const ctx = document.getElementById('weekChart').getContext('2d');
+                const colors = ['#DA2135', '#E84A5C', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#84cc16'];
+                charts.weekChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: topCustomers.map(c => c.name),
+                        datasets: [{
+                            data: topCustomers.map(c => c.count),
+                            backgroundColor: colors.slice(0, topCustomers.length),
+                            borderColor: 'var(--bg-darker)',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: '#d4d4d4', font: { family: 'Poppins', size: 12 }, padding: 15 }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                padding: 12,
+                                titleFont: { family: 'Poppins', size: 14 },
+                                bodyFont: { family: 'Poppins', size: 12 },
+                                callbacks: {
+                                    label: function(context) {
+                                        const pct = chartTotal > 0 ? ((context.parsed / chartTotal) * 100).toFixed(1) : 0;
+                                        return context.label + ': ' + context.parsed + ' (' + pct + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         }
-
-        let selectedMonthIdx = -1;
 
         function renderMonthDetailTab(container) {
             const breakdown = dashboardData.monthlyBreakdown || [];
@@ -2218,27 +2318,31 @@
                 `<option value="${i}" ${i === selectedMonthIdx ? 'selected' : ''}>${formatMonthLabel(m.label)}</option>`
             ).join('');
 
-            const rows = Object.entries(monthData)
-                .filter(([key]) => {
-                    if (isInternalCampaign(key)) return false;
-                    if (!currentClient) return true;
-                    return (dashboardData.customerMap[key] || key) === currentClient;
-                })
-                .map(([funnel, count]) => {
-                    const prevCount = prevMonth ? ((prevMonth.data || {})[funnel] || 0) : 0;
-                    const diff = count - prevCount;
-                    let totalAll = 0;
-                    breakdown.forEach(m => { totalAll += (m.data || {})[funnel] || 0; });
-                    return { funnel, count, prevCount, diff, totalAll };
-                })
-                .sort((a, b) => b.count - a.count)
-                .filter(row => {
-                    if (tabSearchQuery === '') return true;
-                    const query = tabSearchQuery.toLowerCase();
-                    return row.funnel.toLowerCase().includes(query);
-                });
+            const customerMap = {};
+            Object.entries(monthData).forEach(([funnel, count]) => {
+                if (count <= 0 || isInternalCampaign(funnel)) return;
+                const customer = dashboardData.customerMap[funnel] || funnel;
+                if (!currentClient || customer === currentClient) {
+                    if (!customerMap[customer]) customerMap[customer] = { count: 0, funnels: [] };
+                    customerMap[customer].count += count;
+                    customerMap[customer].funnels.push(funnel);
+                }
+            });
 
-            const filteredTotal = rows.reduce((s, r) => s + r.count, 0);
+            let filteredCustomers = Object.entries(customerMap)
+                .map(([name, data]) => ({ name, ...data }))
+                .sort((a, b) => b.count - a.count);
+            
+            if (tabSearchQuery) {
+                const q = tabSearchQuery.toLowerCase();
+                filteredCustomers = filteredCustomers.filter(c => 
+                    c.name.toLowerCase().includes(q) || 
+                    c.funnels.some(f => f.toLowerCase().includes(q))
+                );
+            }
+
+            const topCustomers = filteredCustomers.slice(0, 10);
+            const filteredTotal = topCustomers.reduce((s, c) => s + c.count, 0);
 
             container.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
@@ -2266,36 +2370,69 @@
                     </div>` : ''}
                     <div class="kpi-card">
                         <div class="kpi-label">Aktive Kampagnen</div>
-                        <div class="kpi-value">${rows.filter(r => r.count > 0).length}</div>
+                        <div class="kpi-value">${topCustomers.filter(c => c.count > 0).length}</div>
                     </div>
                 </div>
-                <div class="section-title">Nach Kampagne</div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Kampagne</th>
-                                <th>Insgesamt</th>
-                                <th>${formatMonthLabel(currentMonth.label) || 'Monat'}</th>
-                                ${prevMonth ? `<th>${formatMonthLabel(prevMonth.label)}</th><th>Differenz</th>` : ''}
-                                <th>Anteil</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rows.map(r => {
-                                const pct = filteredTotal > 0 ? ((r.count / filteredTotal) * 100).toFixed(1) : 0;
-                                return `<tr>
-                                    <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${(dashboardData.customerMap[r.funnel] || r.funnel).replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">${dashboardData.customerMap[r.funnel] || r.funnel}</a></td>
-                                    <td style="font-weight: 700; color: var(--text-primary);">${r.totalAll}</td>
-                                    <td><strong>${r.count}</strong></td>
-                                    ${prevMonth ? `<td>${r.prevCount}</td><td style="color: ${r.diff > 0 ? 'var(--color-success)' : r.diff < 0 ? 'var(--color-danger)' : 'var(--text-muted)'};">${r.diff > 0 ? '+' : ''}${r.diff}</td>` : ''}
-                                    <td>${pct}%</td>
-                                </tr>`;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                </div>
+                ${topCustomers.length > 0 ? `
+                    <div class="section-title">Nach Kunde</div>
+                    <canvas id="monthDetailChart" style="max-height: 280px; margin-bottom: 24px;"></canvas>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 16px;">
+                        ${topCustomers.map(c => `
+                            <div style="background: var(--bg-card); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border-color);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <a href="#" onclick="event.preventDefault(); navigateToCustomer('${c.name.replace(/'/g, "\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 600; font-size: 14px;">${c.name}</a>
+                                    <span style="font-size: 20px; font-weight: 700;">${c.count}</span>
+                                </div>
+                                <div style="font-size: 11px; color: var(--text-muted);">${c.funnels.join(', ')}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : `<div style="text-align: center; padding: 40px; color: var(--text-muted);">Keine Bewerber in diesem Zeitraum</div>`}
             `;
+            
+            if (topCustomers.length > 0) {
+                if (charts.monthDetailChart) charts.monthDetailChart.destroy();
+                const ctx = document.getElementById('monthDetailChart').getContext('2d');
+                charts.monthDetailChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: topCustomers.map(c => c.name),
+                        datasets: [{
+                            label: 'Bewerber',
+                            data: topCustomers.map(c => c.count),
+                            backgroundColor: ['#DA2135', '#E84A5C', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#84cc16'],
+                            borderColor: '#DA2135',
+                            borderWidth: 0,
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                padding: 12,
+                                titleFont: { family: 'Poppins', size: 14 },
+                                bodyFont: { family: 'Poppins', size: 12 }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#d4d4d4', font: { family: 'Poppins' } }
+                            },
+                            y: {
+                                grid: { display: false },
+                                ticks: { color: '#d4d4d4', font: { family: 'Poppins', size: 12 } }
+                            }
+                        }
+                    }
+                });
+            }
         }
 
         function renderMonthlyTab(container) {
@@ -2312,26 +2449,30 @@
             const currentTotal = currentMonth.total || 0;
             const prevTotal = prevMonth.total || 0;
             const changePct = prevTotal > 0 ? Math.round(((currentTotal - prevTotal) / prevTotal) * 100) : 0;
+            const avgPerDayCurrentMonth = Math.round(currentTotal / 30);
+            const avgPerDayPrevMonth = Math.round(prevTotal / 30);
 
-            const allFunnels = new Set();
-            breakdown.forEach(m => Object.keys(m.data || {}).forEach(f => allFunnels.add(f)));
+            const customerMap = {};
+            [currentMonth, prevMonth].forEach((month, idx) => {
+                Object.entries(month.data || {}).forEach(([funnel, count]) => {
+                    if (isInternalCampaign(funnel)) return;
+                    const customer = dashboardData.customerMap[funnel] || funnel;
+                    if (!customerMap[customer]) customerMap[customer] = { prev: 0, current: 0 };
+                    if (idx === 0) customerMap[customer].current += count;
+                    else customerMap[customer].prev += count;
+                });
+            });
 
-            const comparisonData = Array.from(allFunnels)
-                .filter(f => !isInternalCampaign(f))
-                .map(funnel => {
-                    const currentCount = (currentMonth.data || {})[funnel] || 0;
-                    const prevCount = (prevMonth.data || {})[funnel] || 0;
-                    const diff = currentCount - prevCount;
-                    return {
-                        funnel,
-                        customer: dashboardData.customerMap[funnel] || funnel,
-                        prevCount,
-                        currentCount,
-                        diff
-                    };
-                })
-                .filter(row => row.currentCount > 0 || row.prevCount > 0)
-                .sort((a, b) => b.currentCount - a.currentCount);
+            const comparisonData = Object.entries(customerMap)
+                .map(([name, data]) => ({
+                    name,
+                    prev: data.prev,
+                    current: data.current,
+                    diff: data.current - data.prev
+                }))
+                .filter(r => r.current > 0 || r.prev > 0)
+                .sort((a, b) => b.current - a.current)
+                .slice(0, 10);
 
             let html = `
                 <div class="kpi-grid">
@@ -2352,47 +2493,69 @@
                         <div class="kpi-value" style="color: ${changePct >= 0 ? 'var(--color-success)' : 'var(--color-danger)'};">${changePct >= 0 ? '+' : ''}${changePct}%</div>
                     </div>
                 </div>
-
-                <div class="section-title">Monatlicher Vergleich nach Kampagne</div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Kunde</th>
-                                <th>Position / Kampagne</th>
-                                <th>${formatMonthLabel(prevMonth.label)}</th>
-                                <th>${formatMonthLabel(currentMonth.label)}</th>
-                                <th>Veränderung</th>
-                                <th>Trend</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                ${comparisonData.length > 0 ? `
+                    <div class="section-title">Monatlicher Vergleich nach Kunde</div>
+                    <canvas id="monthlyCompareChart" style="max-height: 300px; margin-bottom: 24px;"></canvas>
+                ` : `<div style="text-align: center; padding: 40px; color: var(--text-muted);">Keine Vergleichsdaten vorhanden</div>`}
             `;
-
-            let lastCustomer = '';
-            comparisonData.forEach(row => {
-                const sep = lastCustomer && lastCustomer !== row.customer ? '<tr class="customer-separator"><td colspan="6"></td></tr>' : '';
-                lastCustomer = row.customer;
-                const trendIcon = row.diff > 0 ? '↑' : row.diff < 0 ? '↓' : '→';
-                const trendColor = row.diff > 0 ? 'var(--color-success)' : row.diff < 0 ? 'var(--color-danger)' : 'var(--text-muted)';
-
-                html += sep + `
-                    <tr>
-                        <td><a href="#" onclick="event.preventDefault(); navigateToCustomer('${row.customer.replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; cursor: pointer; font-weight: 600;">${row.customer}</a></td>
-                        <td style="font-size: 12px; color: var(--text-muted);">${row.funnel}</td>
-                        <td>${row.prevCount}</td>
-                        <td><strong>${row.currentCount}</strong></td>
-                        <td style="color: ${row.diff >= 0 ? 'var(--color-success)' : 'var(--color-danger)'};">${row.diff >= 0 ? '+' : ''}${row.diff}</td>
-                        <td style="color: ${trendColor}; font-weight: 600;">${trendIcon}</td>
-                    </tr>
-                `;
-            });
-
-            html += '</tbody></table></div>';
+            
             container.innerHTML = html;
+            
+            if (comparisonData.length > 0) {
+                if (charts.monthlyCompareChart) charts.monthlyCompareChart.destroy();
+                const ctx = document.getElementById('monthlyCompareChart').getContext('2d');
+                charts.monthlyCompareChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: comparisonData.map(d => d.name),
+                        datasets: [
+                            {
+                                label: formatMonthLabel(prevMonth.label),
+                                data: comparisonData.map(d => d.prev),
+                                backgroundColor: '#E84A5C',
+                                borderRadius: 8,
+                                borderSkipped: false
+                            },
+                            {
+                                label: formatMonthLabel(currentMonth.label),
+                                data: comparisonData.map(d => d.current),
+                                backgroundColor: '#DA2135',
+                                borderRadius: 8,
+                                borderSkipped: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#d4d4d4', font: { family: 'Poppins', size: 12 }, padding: 15 }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                padding: 12,
+                                titleFont: { family: 'Poppins', size: 14 },
+                                bodyFont: { family: 'Poppins', size: 12 }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#d4d4d4', font: { family: 'Poppins', size: 11 } }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255,255,255,0.05)' },
+                                ticks: { color: '#d4d4d4', font: { family: 'Poppins' } }
+                            }
+                        }
+                    }
+                });
+            }
         }
 
-        function renderCampaignsTab(container) {
+function renderCampaignsTab(container) {
             const activeCampaigns = dashboardData.clients.filter(c => !campaignStatuses[c] || campaignStatuses[c] === 'active').length;
             const pausedCampaigns = dashboardData.clients.filter(c => campaignStatuses[c] === 'paused').length;
             const filledCampaigns = dashboardData.clients.filter(c => campaignStatuses[c] === 'filled').length;
@@ -2569,7 +2732,7 @@
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-label">Gesamtbudget (30 Tage)</div>
-                        <div class="kpi-value">${(defaultBudgetPerDay * 30 * dashboardData.clients.length).toLocaleString('de-DE')} Euro</div>
+                        <div class="kpi-value">${(defaultBudgetPerDay * 30 * dashboardData.clients.filter(c => (campaignStatuses[c] || 'active') !== 'stopped').length).toLocaleString('de-DE')} Euro</div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-label">Durchschnittliche Kosten pro Bewerbung</div>
@@ -2607,7 +2770,10 @@
                 return a.localeCompare(b);
             });
 
-            const costs = sortedClients.map(funnel => {
+            const costs = sortedClients.filter(funnel => {
+                const status = campaignStatuses[funnel] || 'active';
+                return status !== 'stopped';
+            }).map(funnel => {
                 const individualBudget = costSettings.individualBudgets?.[funnel];
                 const budgetPerDay = individualBudget || defaultBudget;
                 const monthlyApplicants = monthlyData[funnel] || getFilteredValue(dashboardData.thisMonth, funnel) || getFilteredValue(dashboardData.thisWeek, funnel);
