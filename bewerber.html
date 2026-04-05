@@ -1161,7 +1161,12 @@
                 'ä': 'ä', 'ö': 'ö', 'ü': 'ü', 'Ä': 'Ä', 'Ö': 'Ö', 'Ü': 'Ü',
                 'Ã€': 'À', 'Ã©': 'é', 'Ã¨': 'è',
                 '\u00c3\u00a4': 'ä', '\u00c3\u00b6': 'ö', '\u00c3\u00bc': 'ü',
-                '\u00c3\u0084': 'Ä', '\u00c3\u0096': 'Ö', '\u00c3\u009c': 'Ü'
+                '\u00c3\u0084': 'Ä', '\u00c3\u0096': 'Ö', '\u00c3\u009c': 'Ü',
+                '\u00c3\u009f': 'ß',
+                'Ã\u009c': 'Ü', 'Ã\u009f': 'ß',
+                'â€"': '\u2013', 'â€"': '\u2014', 'â€™': '\u2019', 'â€ž': '\u201E', 'â€œ': '\u201C',
+                'Ã ': 'à', 'Ã¡': 'á', 'Ã¢': 'â', 'Ã£': 'ã', 'Ã§': 'ç', 'Ã±': 'ñ',
+                'Ã®': 'î', 'Ã¯': 'ï', 'Ã´': 'ô', 'Ã¹': 'ù', 'Ãº': 'ú', 'Ã»': 'û'
             };
 
             const manualFixes = {
@@ -1174,16 +1179,30 @@
             function fixStr(str) {
                 if (typeof str !== 'string') return str;
                 let result = str;
+
+                result = result.replace(/\uFFFD/g, '');
+
                 Object.entries(replacements).forEach(([bad, good]) => {
                     result = result.split(bad).join(good);
                 });
+
                 try {
                     const decoded = decodeURIComponent(escape(result));
-                    if (decoded !== result && /[äöüÄÖÜß]/.test(decoded)) result = decoded;
+                    if (decoded !== result && /[äöüÄÖÜßéèàáâãçñîïôùúû]/.test(decoded)) result = decoded;
                 } catch(e) {}
+
+                try {
+                    if (/[\u00c0-\u00ff]/.test(result)) {
+                        const bytes = new Uint8Array([...result].map(c => c.charCodeAt(0)));
+                        const decoded2 = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+                        if (/[äöüÄÖÜß]/.test(decoded2)) result = decoded2;
+                    }
+                } catch(e) {}
+
                 Object.entries(manualFixes).forEach(([wrong, correct]) => {
                     result = result.split(wrong).join(correct);
                 });
+
                 return result;
             }
 
@@ -1201,6 +1220,35 @@
             }
 
             return fixObj(data);
+        }
+
+        function checkEncodingHealth(data) {
+            const problems = [];
+            const badPatterns = /[\uFFFD]|Ã¤|Ã¶|Ã¼|Ã„|Ã–|Ãœ|ÃŸ|â€|Ã©|Ã¨/;
+
+            function scan(obj, path) {
+                if (typeof obj === 'string') {
+                    if (badPatterns.test(obj)) {
+                        problems.push({ path, value: obj.substring(0, 80) });
+                    }
+                } else if (Array.isArray(obj)) {
+                    obj.forEach((item, i) => scan(item, path + '[' + i + ']'));
+                } else if (obj && typeof obj === 'object') {
+                    Object.entries(obj).forEach(([k, v]) => {
+                        if (badPatterns.test(k)) problems.push({ path: path + '.' + k + ' (KEY)', value: k });
+                        scan(v, path + '.' + k);
+                    });
+                }
+            }
+
+            scan(data, 'data');
+
+            if (problems.length > 0) {
+                console.warn('[Encoding Check] ' + problems.length + ' Umlaut Probleme gefunden nach fixUmlauts():');
+                problems.forEach(p => console.warn('  ' + p.path + ': "' + p.value + '"'));
+            } else {
+                console.log('[Encoding Check] Alle Texte sauber, keine Umlaut Probleme.');
+            }
         }
 
         function init() {
@@ -1308,9 +1356,19 @@
             syncDot.classList.add('syncing');
 
             fetch(`${API_URL}?action=dashboard`)
-                .then(r => r.json())
+                .then(r => {
+                    const ct = r.headers.get('content-type') || '';
+                    if (ct.includes('charset') && !ct.includes('utf-8')) {
+                        return r.arrayBuffer().then(buf => {
+                            const decoded = new TextDecoder('utf-8').decode(buf);
+                            return JSON.parse(decoded);
+                        });
+                    }
+                    return r.text().then(txt => JSON.parse(txt));
+                })
                 .then(data => {
                     dashboardData = fixUmlauts(data);
+                    checkEncodingHealth(dashboardData);
                     applyManualApplicants();
                     updateClientFilter();
                     const content = document.getElementById('contentArea');
