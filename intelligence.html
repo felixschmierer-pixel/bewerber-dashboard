@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kundenintelligenz - Redline Grow</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --color-primary: #DA2135;
+            --color-primary-light: #E84A5C;
+            --color-primary-dark: #A5192A;
+            --color-bg-dark: #1A1A1A;
+            --color-bg-darker: #111111;
+            --color-bg-card: #2D2D2D;
+            --color-bg-hover: #3a3a3a;
+            --color-text-primary: #FFFFFF;
+            --color-text-secondary: #d4d4d4;
+            --color-text-muted: #8a8a8a;
+            --color-border: #3a3a3a;
+            --radius: 10px;
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+        }
+
+        body.light-mode {
+            --color-bg-dark: #FFFFFF;
+            --color-bg-darker: #F5F5F5;
+            --color-bg-card: #F9F9F9;
+            --color-bg-hover: #F0F0F0;
+            --color-text-primary: #1A1A1A;
+            --color-text-secondary: #4a4a4a;
+            --color-text-muted: #757575;
+            --color-border: #E0E0E0;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--color-bg-darker);
+            color: var(--color-text-primary);
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background-color: var(--color-bg-dark);
+            border-right: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+            padding: var(--spacing-lg);
+            overflow-y: auto;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-bottom: var(--spacing-xl);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .nav-items {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .nav-item {
+            padding: var(--spacing-md);
+            border-radius: var(--radius);
+            text-decoration: none;
+            color: var(--color-text-secondary);
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            background-color: var(--color-bg-hover);
+            color: var(--color-text-primary);
+        }
+
+        .nav-item.active {
+            background-color: var(--color-primary);
+            color: white;
+        }
+
+        .theme-toggle {
+            margin-top: auto;
+            padding: var(--spacing-md);
+            border: 1px solid var(--color-border);
+            background-color: var(--color-bg-card);
+            border-radius: var(--radius);
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .theme-toggle:hover {
+            background-color: var(--color-bg-hover);
+            color: var(--color-text-primary);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--color-bg-darker);
+            overflow: hidden;
+        }
+
+        .header {
+            padding: var(--spacing-xl);
+            border-bottom: 1px solid var(--color-border);
+            background-color: var(--color-bg-dark);
+        }
+
+        .header-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .header-subtitle {
+            color: var(--color-text-muted);
+            font-size: 14px;
+        }
+
+        /* Content Scroll */
+        .content-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--spacing-xl);
+        }
+
+        /* Quick Stats */
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .stat-card {
+            background-color: var(--color-bg-card);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            padding: var(--spacing-md);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Search and Filters */
+        .search-filter-bar {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+            flex-wrap: wrap;
+        }
+
+        .search-input, .filter-input {
+            padding: var(--spacing-md);
+            background-color: var(--color-bg-card);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            color: var(--color-text-primary);
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+        }
+
+        .search-input:focus, .filter-input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-input {
+            min-width: 150px;
+        }
+
+        /* Customer Overview Grid */
+        .customer-overview {
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .overview-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--color-text-secondary);
+        }
+
+        .customer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .customer-card {
+            background-color: var(--color-bg-card);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            padding: var(--spacing-md);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .customer-card:hover {
+            border-color: var(--color-primary);
+            background-color: var(--color-bg-hover);
+        }
+
+        .customer-card.selected {
+            border-color: var(--color-primary);
+            background-color: rgba(218, 33, 53, 0.1);
+        }
+
+        .customer-name {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .customer-meta {
+            font-size: 12px;
+            color: var(--color-text-muted);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .customer-satisfaction {
+            display: flex;
+            gap: var(--spacing-xs);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .satisfaction-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--color-text-muted);
+        }
+
+        .satisfaction-dot.zufrieden {
+            background-color: #10b981;
+        }
+
+        .satisfaction-dot.neutral {
+            background-color: #f59e0b;
+        }
+
+        .satisfaction-dot.unzufrieden {
+            background-color: #ef4444;
+        }
+
+        .customer-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+        }
+
+        /* Meetings List */
+        .meetings-section {
+            margin-top: var(--spacing-xl);
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--color-text-secondary);
+        }
+
+        .meetings-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        /* Meeting Card */
+        .meeting-card {
+            background-color: var(--color-bg-card);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        .meeting-card:hover {
+            border-color: var(--color-primary-light);
+        }
+
+        .meeting-header {
+            padding: var(--spacing-md);
+            background-color: var(--color-bg-hover);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .meeting-header:hover {
+            background-color: var(--color-bg-card);
+        }
+
+        .meeting-header-left {
+            flex: 1;
+        }
+
+        .meeting-date {
+            font-size: 12px;
+            color: var(--color-text-muted);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .meeting-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .meeting-customer {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-primary-light);
+        }
+
+        .satisfaction-indicator {
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .expand-icon {
+            color: var(--color-text-muted);
+            font-size: 18px;
+            transition: transform 0.2s ease;
+            margin-left: var(--spacing-md);
+        }
+
+        .meeting-card.expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .meeting-content {
+            display: none;
+            padding: var(--spacing-md);
+            border-top: 1px solid var(--color-border);
+        }
+
+        .meeting-card.expanded .meeting-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-md);
+        }
+
+        .insight-section {
+            background-color: var(--color-bg-hover);
+            padding: var(--spacing-md);
+            border-radius: var(--spacing-xs);
+        }
+
+        .insight-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--color-text-muted);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .insight-content {
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--color-text-secondary);
+        }
+
+        .insight-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .insight-item {
+            display: flex;
+            gap: var(--spacing-sm);
+            align-items: flex-start;
+            font-size: 13px;
+        }
+
+        .insight-item:before {
+            content: "•";
+            color: var(--color-primary);
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .upsell-highlight {
+            background-color: rgba(217, 119, 6, 0.15);
+            padding: var(--spacing-sm);
+            border-left: 2px solid #d97706;
+            border-radius: var(--spacing-xs);
+        }
+
+        .pain-highlight {
+            background-color: rgba(239, 68, 68, 0.15);
+            padding: var(--spacing-sm);
+            border-left: 2px solid #ef4444;
+            border-radius: var(--spacing-xs);
+        }
+
+        .positive-highlight {
+            background-color: rgba(16, 185, 129, 0.15);
+            padding: var(--spacing-sm);
+            border-left: 2px solid #10b981;
+            border-radius: var(--spacing-xs);
+        }
+
+        .negative-highlight {
+            background-color: rgba(239, 68, 68, 0.15);
+            padding: var(--spacing-sm);
+            border-left: 2px solid #ef4444;
+            border-radius: var(--spacing-xs);
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-xs);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background-color: var(--color-bg-darker);
+            border: 1px solid var(--color-text-muted);
+            border-radius: 4px;
+            font-size: 11px;
+            color: var(--color-text-muted);
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-xl);
+            text-align: center;
+            color: var(--color-text-muted);
+            min-height: 400px;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: var(--spacing-md);
+            opacity: 0.5;
+        }
+
+        .empty-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+            color: var(--color-text-secondary);
+        }
+
+        .empty-text {
+            max-width: 400px;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px;
+            color: var(--color-text-muted);
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--color-border);
+            border-top-color: var(--color-primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--color-border);
+                flex-direction: row;
+                align-items: center;
+                overflow-x: auto;
+            }
+
+            .logo {
+                margin-bottom: 0;
+            }
+
+            .nav-items {
+                flex-direction: row;
+                flex: 1;
+                margin: 0 var(--spacing-lg);
+            }
+
+            .theme-toggle {
+                margin-top: 0;
+                margin-left: auto;
+            }
+
+            .quick-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .customer-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+
+            .search-filter-bar {
+                flex-direction: column;
+            }
+
+            .search-input, .filter-input {
+                width: 100%;
+            }
+
+            .meeting-card.expanded .meeting-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--color-bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--color-border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--color-text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <span>RG</span>
+            </div>
+            <div class="nav-items">
+                <a href="bewerber.html" class="nav-item">Bewerber</a>
+                <a href="meetings.html" class="nav-item">Meetings</a>
+                <a href="tasks.html" class="nav-item">Aufgaben</a>
+                <a href="intelligence.html" class="nav-item active">Kundenintelligenz</a>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()">🌙 Theme</button>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <div class="header-title">Kundenintelligenz</div>
+                <div class="header-subtitle">KI Analyse aus Kundenmeetings</div>
+            </div>
+
+            <div class="content-scroll">
+                <!-- Quick Stats -->
+                <div class="quick-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="stat-meetings">0</div>
+                        <div class="stat-label">Analysierte Meetings</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="stat-upsells">0</div>
+                        <div class="stat-label">Upsell Chancen erkannt</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="stat-satisfied">0</div>
+                        <div class="stat-label">Kunden zufrieden</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="stat-unsatisfied">0</div>
+                        <div class="stat-label">Kunden unzufrieden</div>
+                    </div>
+                </div>
+
+                <!-- Search and Filters -->
+                <div class="search-filter-bar">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Nach Kunde suchen...">
+                    <input type="date" class="filter-input" id="dateFromInput" placeholder="Von">
+                    <input type="date" class="filter-input" id="dateToInput" placeholder="Bis">
+                </div>
+
+                <!-- Customer Overview -->
+                <div class="customer-overview">
+                    <div class="overview-title">Kundenubersicht</div>
+                    <div class="customer-grid" id="customerGrid"></div>
+                </div>
+
+                <!-- Meetings Section -->
+                <div class="meetings-section">
+                    <div class="section-title">Meeting Analysen</div>
+                    <div id="meetingsContainer" class="meetings-list">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const INTELLIGENCE_API = localStorage.getItem('n8n_intelligence_api_url') || 'https://redline-grow.app.n8n.cloud/webhook/intelligence-api';
+        let allIntelligenceData = [];
+        let selectedCustomer = null;
+
+        // Theme Toggle
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            localStorage.setItem('intelligence-theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        }
+
+        // Load theme preference
+        function loadThemePreference() {
+            const savedTheme = localStorage.getItem('intelligence-theme');
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-mode');
+            }
+        }
+
+        // Fetch intelligence data
+        async function fetchIntelligenceData() {
+            const container = document.getElementById('meetingsContainer');
+            try {
+                const response = await fetch(INTELLIGENCE_API);
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (!data || data.length === 0) {
+                    showEmptyState();
+                    return;
+                }
+
+                allIntelligenceData = data;
+                renderData();
+            } catch (error) {
+                console.error('Error fetching intelligence data:', error);
+                showEmptyState();
+            }
+        }
+
+        // Show empty state
+        function showEmptyState() {
+            const container = document.getElementById('meetingsContainer');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <div class="empty-title">Keine Analysen vorhanden</div>
+                    <div class="empty-text">Sobald Meeting Transkripte analysiert werden, erscheinen hier automatisch KI generierte Insights zu jedem Kundengespräch.</div>
+                </div>
+            `;
+            updateStats([], []);
+        }
+
+        // Render all data
+        function renderData() {
+            const filtered = filterData();
+            renderCustomerOverview(filtered);
+            renderMeetings(filtered);
+            updateStats(filtered, allIntelligenceData);
+        }
+
+        // Filter data
+        function filterData() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const dateFrom = document.getElementById('dateFromInput').value;
+            const dateTo = document.getElementById('dateToInput').value;
+
+            return allIntelligenceData.filter(item => {
+                const matchesSearch = !searchTerm || (item.kunde && item.kunde.toLowerCase().includes(searchTerm));
+                const itemDate = item.meeting_datum ? new Date(item.meeting_datum) : null;
+                const matchesDateFrom = !dateFrom || !itemDate || itemDate >= new Date(dateFrom);
+                const matchesDateTo = !dateTo || !itemDate || itemDate <= new Date(dateTo);
+                const matchesCustomer = !selectedCustomer || item.kunde === selectedCustomer;
+
+                return matchesSearch && matchesDateFrom && matchesDateTo && matchesCustomer;
+            });
+        }
+
+        // Render customer overview
+        function renderCustomerOverview(filteredData) {
+            const customers = {};
+
+            allIntelligenceData.forEach(item => {
+                if (!customers[item.kunde]) {
+                    customers[item.kunde] = [];
+                }
+                customers[item.kunde].push(item);
+            });
+
+            const grid = document.getElementById('customerGrid');
+            grid.innerHTML = '';
+
+            Object.entries(customers).forEach(([customerName, meetings]) => {
+                const lastMeeting = meetings[meetings.length - 1];
+                const lastThreeSatisfaction = meetings.slice(-3).map(m => getSatisfactionLevel(m));
+
+                const actionItems = meetings.reduce((sum, m) => {
+                    return sum + (m.action_items && Array.isArray(m.action_items) ? m.action_items.length : 0);
+                }, 0);
+
+                const upsellPotential = meetings.reduce((sum, m) => {
+                    return sum + (m.upsell_potenzial && Array.isArray(m.upsell_potenzial) ? m.upsell_potenzial.length : 0);
+                }, 0);
+
+                const card = document.createElement('div');
+                card.className = `customer-card${selectedCustomer === customerName ? ' selected' : ''}`;
+                card.onclick = () => selectCustomer(customerName);
+
+                const satisfactionDots = lastThreeSatisfaction.map(level => {
+                    const colors = { zufrieden: 'zufrieden', neutral: 'neutral', unzufrieden: 'unzufrieden' };
+                    return `<div class="satisfaction-dot ${colors[level] || 'neutral'}"></div>`;
+                }).join('');
+
+                card.innerHTML = `
+                    <div class="customer-name">${escapeHtml(customerName)}</div>
+                    <div class="customer-meta">
+                        ${lastMeeting && lastMeeting.meeting_datum ? formatDate(lastMeeting.meeting_datum) : 'Kein Datum'}
+                    </div>
+                    <div class="customer-satisfaction">
+                        ${satisfactionDots}
+                    </div>
+                    <div class="customer-stats">
+                        <span>${actionItems} Action Items</span>
+                        <span>${upsellPotential} Upsells</span>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        // Select customer
+        function selectCustomer(customerName) {
+            selectedCustomer = selectedCustomer === customerName ? null : customerName;
+            renderData();
+        }
+
+        // Render meetings
+        function renderMeetings(filteredData) {
+            const container = document.getElementById('meetingsContainer');
+
+            if (filteredData.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🔍</div>
+                        <div class="empty-title">Keine Analysen gefunden</div>
+                        <div class="empty-text">Versuchen Sie, Ihre Suchkriterien zu andern.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filteredData.map(item => createMeetingCard(item)).join('');
+            attachEventListeners();
+        }
+
+        // Create meeting card
+        function createMeetingCard(item) {
+            const satisfaction = getSatisfactionLevel(item);
+            const satisfactionEmoji = {
+                zufrieden: '😊',
+                neutral: '😐',
+                unzufrieden: '😞'
+            }[satisfaction];
+
+            const formatContent = (content) => {
+                if (!content) return '';
+                if (Array.isArray(content)) {
+                    return content.map(c => `<div class="insight-item"><span>${escapeHtml(String(c))}</span></div>`).join('');
+                }
+                return `<div class="insight-item"><span>${escapeHtml(String(content))}</span></div>`;
+            };
+
+            const cardId = `card-${Math.random().toString(36).substr(2, 9)}`;
+
+            return `
+                <div class="meeting-card" id="${cardId}">
+                    <div class="meeting-header">
+                        <div class="meeting-header-left">
+                            <div class="meeting-date">${item.meeting_datum ? formatDate(item.meeting_datum) : 'Kein Datum'}</div>
+                            <div class="meeting-title">${escapeHtml(item.meeting_titel || 'Untitled Meeting')}</div>
+                            <div class="meeting-customer">${escapeHtml(item.kunde || 'Unknown Customer')}</div>
+                        </div>
+                        <div class="satisfaction-indicator">${satisfactionEmoji}</div>
+                        <div class="expand-icon">▼</div>
+                    </div>
+                    <div class="meeting-content">
+                        ${item.was_will_der_kunde ? `
+                            <div class="insight-section">
+                                <div class="insight-label">Was will der Kunde</div>
+                                <div class="insight-list">
+                                    ${formatContent(item.was_will_der_kunde)}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${item.upsell_potenzial ? `
+                            <div class="insight-section">
+                                <div class="insight-label">Upsell Potenzial</div>
+                                <div class="upsell-highlight">
+                                    <div class="insight-list">
+                                        ${formatContent(item.upsell_potenzial)}
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${item.pain_points ? `
+                            <div class="insight-section">
+                                <div class="insight-label">Pain Points</div>
+                                <div class="pain-highlight">
+                                    <div class="insight-list">
+                                        ${formatContent(item.pain_points)}
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${item.was_gefaellt ? `
+                            <div class="insight-section">
+                                <div class="insight-label">Was gefaellt</div>
+                                <div class="positive-highlight">
+                                    <div class="insight-list">
+                                        ${formatContent(item.was_gefaellt)}
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${item.was_gefaellt_nicht ? `
+                            <div class="insight-section">
+                                <div class="insight-label">Was gefaellt nicht</div>
+                                <div class="negative-highlight">
+                                    <div class="insight-list">
+                                        ${formatContent(item.was_gefaellt_nicht)}
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${item.smalltalk_themen ? `
+                            <div class="insight-section">
+                                <div class="insight-label">Smalltalk Themen</div>
+                                <div class="tags">
+                                    ${(Array.isArray(item.smalltalk_themen) ? item.smalltalk_themen : [item.smalltalk_themen])
+                                        .map(t => `<span class="tag">${escapeHtml(String(t))}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${item.payment_status ? `
+                            <div class="insight-section">
+                                <div class="insight-label">Payment Status</div>
+                                <div class="insight-content">${escapeHtml(String(item.payment_status))}</div>
+                            </div>
+                        ` : ''}
+
+                        ${item.action_items ? `
+                            <div class="insight-section">
+                                <div class="insight-label">Action Items</div>
+                                <div class="insight-list">
+                                    ${formatContent(item.action_items)}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${item.ki_zusammenfassung ? `
+                            <div class="insight-section" style="grid-column: 1 / -1;">
+                                <div class="insight-label">KI Zusammenfassung</div>
+                                <div class="insight-content">${escapeHtml(String(item.ki_zusammenfassung))}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Attach event listeners
+        function attachEventListeners() {
+            document.querySelectorAll('.meeting-header').forEach(header => {
+                header.addEventListener('click', function() {
+                    this.closest('.meeting-card').classList.toggle('expanded');
+                });
+            });
+        }
+
+        // Get satisfaction level
+        function getSatisfactionLevel(item) {
+            const gemaetslage = item.gemaetslage || item.zufriedenheit || '';
+            const lower = String(gemaetslage).toLowerCase();
+
+            if (lower.includes('zufrieden') || lower.includes('happy') || lower.includes('positiv')) {
+                return 'zufrieden';
+            }
+            if (lower.includes('unzufrieden') || lower.includes('sad') || lower.includes('negativ') || lower.includes('concerned')) {
+                return 'unzufrieden';
+            }
+            return 'neutral';
+        }
+
+        // Update stats
+        function updateStats(filtered, all) {
+            const totalMeetings = allIntelligenceData.length;
+            const upsellCount = allIntelligenceData.reduce((sum, item) => {
+                return sum + (item.upsell_potenzial && Array.isArray(item.upsell_potenzial) ? item.upsell_potenzial.length : 0);
+            }, 0);
+
+            const satisfied = allIntelligenceData.filter(item => getSatisfactionLevel(item) === 'zufrieden').length;
+            const unsatisfied = allIntelligenceData.filter(item => getSatisfactionLevel(item) === 'unzufrieden').length;
+
+            document.getElementById('stat-meetings').textContent = totalMeetings;
+            document.getElementById('stat-upsells').textContent = upsellCount;
+            document.getElementById('stat-satisfied').textContent = satisfied;
+            document.getElementById('stat-unsatisfied').textContent = unsatisfied;
+        }
+
+        // Utility functions
+        function formatDate(dateString) {
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' });
+            } catch {
+                return dateString;
+            }
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('input', renderData);
+        document.getElementById('dateFromInput').addEventListener('change', renderData);
+        document.getElementById('dateToInput').addEventListener('change', renderData);
+
+        // Initialize
+        loadThemePreference();
+        fetchIntelligenceData();
+
+        // Auto-refresh every 5 minutes
+        setInterval(fetchIntelligenceData, 5 * 60 * 1000);
+    </script>
+</body>
+</html>
