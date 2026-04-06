@@ -420,6 +420,76 @@
             color: var(--color-danger);
         }
 
+        .hidden-alerts-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            margin-top: 16px;
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+
+        .hidden-alerts-toggle:hover {
+            color: var(--text-secondary);
+            border-color: var(--text-muted);
+        }
+
+        .hidden-alerts-toggle .toggle-arrow {
+            transition: transform 0.3s ease;
+            font-size: 10px;
+        }
+
+        .hidden-alerts-toggle.open .toggle-arrow {
+            transform: rotate(90deg);
+        }
+
+        .hidden-alerts-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+
+        .hidden-alerts-content.open {
+            max-height: 2000px;
+        }
+
+        .hidden-alerts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 10px;
+            padding-top: 12px;
+        }
+
+        .hidden-alert-item {
+            background: var(--bg-darker);
+            border-left: 4px solid var(--text-muted);
+            border-radius: 10px;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            opacity: 0.5;
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden-alert-item:hover {
+            opacity: 0.8;
+        }
+
+        .hidden-alert-days-left {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
         .section-title {
             font-size: 18px;
             font-weight: 700;
@@ -1622,7 +1692,7 @@
                     Object.entries(parsed).forEach(([funnel, info]) => {
                         const dismissDate = new Date(info.date);
                         const daysSinceDismiss = Math.floor((now - dismissDate) / (1000 * 60 * 60 * 24));
-                        if (daysSinceDismiss < 7) dismissedAlerts[funnel] = info;
+                        if (daysSinceDismiss < 5) dismissedAlerts[funnel] = info;
                     });
                 }
             }
@@ -1693,6 +1763,11 @@
                 return `Gestern (${fmtDate(y)})`;
             }
             if (tabId === 'week') {
+                const weeks = getWeeklyBreakdown();
+                if (weeks[selectedWeekIdx]) {
+                    const w = weeks[selectedWeekIdx];
+                    return `${w.label} (${fmtDateShort(w.startDate)} bis ${fmtDateShort(w.endDate)})`;
+                }
                 const start = new Date(now); start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
                 const end = new Date(start); end.setDate(end.getDate() + 6);
                 return `Woche (${fmtDateShort(start)} bis ${fmtDateShort(end)})`;
@@ -1828,7 +1903,7 @@
             if (tabId === 'overview') renderOverview(content);
             else if (tabId === 'today') renderDayTab(content, 'today');
             else if (tabId === 'yesterday') renderDayTab(content, 'yesterday');
-            else if (tabId === 'week') renderPeriodTab(content, 'thisWeek', 'Woche');
+            else if (tabId === 'week') renderWeekTab(content);
             else if (tabId === 'month') renderMonthDetailTab(content);
             else if (tabId === 'monthly') renderMonthlyTab(content);
             else if (tabId === 'campaigns') renderCampaignsTab(content);
@@ -2010,10 +2085,14 @@
 
         function renderAlertPanel() {
             const panel = document.getElementById('alertPanel');
-            const alerts = calculateAlerts();
+            const result = calculateAlerts();
+            const alerts = result.active;
+            const hiddenAlerts = result.hidden;
 
-            if (alerts.length === 0) {
-                panel.innerHTML = `
+            let html = '';
+
+            if (alerts.length === 0 && hiddenAlerts.length === 0) {
+                html = `
                     <div class="alert-panel">
                         <div class="alert-title">
                             ✓ Kampagnen Alarm
@@ -2023,31 +2102,66 @@
                         </div>
                     </div>
                 `;
-                return;
+            } else {
+                html = `
+                    <div class="alert-panel">
+                        <div class="alert-title">
+                            ${alerts.length > 0 ? '⚠' : '✓'} Kampagnen Alarm ${alerts.length > 0 ? '(' + alerts.length + ')' : ''}
+                        </div>
+                        ${alerts.length > 0 ? `
+                        <div class="alert-grid">
+                            ${alerts.map(alert => `
+                                <div class="alert-item ${alert.severity === 'critical' ? 'critical' : alert.severity === 'warning' ? '' : 'good'}">
+                                    <div class="alert-dot ${alert.severity === 'critical' ? 'critical' : alert.severity === 'warning' ? 'warning' : 'good'}"></div>
+                                    <div class="alert-content">
+                                        <div class="alert-customer">${alert.customer}</div>
+                                        <div class="alert-funnel">${alert.funnel}</div>
+                                        <div class="alert-date">Letzte: ${alert.lastDate}</div>
+                                        ${alert.hint ? `<div style="font-size: 10px; color: var(--color-warning); font-weight: 600; margin-top: 2px;">&#9888; ${alert.hint}</div>` : ''}
+                                    </div>
+                                    <div class="alert-days">${alert.daysSince} Tage</div>
+                                    <button class="alert-dismiss" onclick="dismissAlert('${alert.funnel.replace(/'/g, "\\'")}', '${alert.severity}')">X</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                        ` : `
+                        <div style="padding: 15px; text-align: center; color: var(--color-success); font-size: 13px;">
+                            Keine aktiven Alarme. ${hiddenAlerts.length} ausgeblendet.
+                        </div>
+                        `}
+
+                        ${hiddenAlerts.length > 0 ? `
+                        <div class="hidden-alerts-toggle" onclick="toggleHiddenAlerts(this)">
+                            <span class="toggle-arrow">▶</span>
+                            Ausgeblendete Kampagnenalarme (${hiddenAlerts.length})
+                        </div>
+                        <div class="hidden-alerts-content" id="hiddenAlertsContent">
+                            <div class="hidden-alerts-grid">
+                                ${hiddenAlerts.map(alert => `
+                                    <div class="hidden-alert-item">
+                                        <div class="alert-content">
+                                            <div class="alert-customer" style="font-size: 13px;">${alert.customer}</div>
+                                            <div class="alert-funnel">${alert.funnel}</div>
+                                            <div class="alert-date">Letzte: ${alert.lastDate}</div>
+                                            <div class="hidden-alert-days-left">Erscheint wieder in ${alert.daysLeft} ${alert.daysLeft === 1 ? 'Tag' : 'Tagen'}</div>
+                                        </div>
+                                        <div class="alert-days" style="font-size: 16px; opacity: 0.5;">${alert.daysSince} Tage</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
             }
 
-            panel.innerHTML = `
-                <div class="alert-panel">
-                    <div class="alert-title">
-                        ⚠ Kampagnen Alarm (${alerts.length})
-                    </div>
-                    <div class="alert-grid">
-                        ${alerts.map((alert, idx) => `
-                            <div class="alert-item ${alert.severity === 'critical' ? 'critical' : alert.severity === 'warning' ? '' : 'good'}">
-                                <div class="alert-dot ${alert.severity === 'critical' ? 'critical' : alert.severity === 'warning' ? 'warning' : 'good'}"></div>
-                                <div class="alert-content">
-                                    <div class="alert-customer">${alert.customer}</div>
-                                    <div class="alert-funnel">${alert.funnel}</div>
-                                    <div class="alert-date">Letzte: ${alert.lastDate}</div>
-                                    ${alert.hint ? `<div style="font-size: 10px; color: var(--color-warning); font-weight: 600; margin-top: 2px;">&#9888; ${alert.hint}</div>` : ''}
-                                </div>
-                                <div class="alert-days">${alert.daysSince} Tage</div>
-                                <button class="alert-dismiss" onclick="dismissAlert('${alert.funnel}', '${alert.severity}')">X</button>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
+            panel.innerHTML = html;
+        }
+
+        function toggleHiddenAlerts(el) {
+            el.classList.toggle('open');
+            const content = document.getElementById('hiddenAlertsContent');
+            if (content) content.classList.toggle('open');
         }
 
         function getManualLastDate(funnel) {
@@ -2069,7 +2183,9 @@
         }
 
         function calculateAlerts() {
+            const DISMISS_DAYS = 5;
             const alerts = [];
+            const hiddenAlerts = [];
             const customers = {};
 
             dashboardData.recentApplicants.forEach(app => {
@@ -2092,7 +2208,6 @@
                     daysSince = calculateDaysSince(lastApp.date);
                     lastDate = lastApp.date;
                 } else {
-                    // Manuelle Eintraege pruefen
                     const manualDate = getManualLastDate(funnel);
                     if (manualDate) {
                         isManual = true;
@@ -2108,21 +2223,25 @@
                 // Manuelle Kampagnen: Erinnerung alle 7 Tage (Webhook pruefen)
                 if (isManual && !lastApp) {
                     if (daysSince >= 7) {
-                        const dismissed = dismissedAlerts[funnel];
-                        // Dismiss gilt nur 7 Tage bei manuellen Kampagnen
-                        if (dismissed) {
-                            const dismissDate = new Date(dismissed.date);
-                            const daysSinceDismiss = Math.floor((new Date() - dismissDate) / (1000 * 60 * 60 * 24));
-                            if (daysSinceDismiss < 7) return;
-                        }
-                        alerts.push({
+                        const alertData = {
                             funnel,
                             customer: dashboardData.customerMap[funnel] || funnel,
                             lastDate: lastDate + ' (manuell)',
                             daysSince,
                             severity: 'warning',
                             hint: 'Webhook eingerichtet?'
-                        });
+                        };
+                        const dismissed = dismissedAlerts[funnel];
+                        if (dismissed) {
+                            const dismissDate = new Date(dismissed.date);
+                            const daysSinceDismiss = Math.floor((new Date() - dismissDate) / (1000 * 60 * 60 * 24));
+                            if (daysSinceDismiss < DISMISS_DAYS) {
+                                alertData.daysLeft = DISMISS_DAYS - daysSinceDismiss;
+                                hiddenAlerts.push(alertData);
+                                return;
+                            }
+                        }
+                        alerts.push(alertData);
                     }
                     return;
                 }
@@ -2132,26 +2251,33 @@
                 else if (daysSince >= 5) severity = 'warning';
 
                 if (severity !== 'good') {
-                    const dismissed = dismissedAlerts[funnel];
-                    if (dismissed) {
-                        const dismissDate = new Date(dismissed.date);
-                        const daysSinceDismiss = Math.floor((new Date() - dismissDate) / (1000 * 60 * 60 * 24));
-                        if (daysSinceDismiss < 7) return;
-                    }
-                    alerts.push({
+                    const alertData = {
                         funnel,
                         customer: dashboardData.customerMap[funnel] || funnel,
                         lastDate,
                         daysSince,
                         severity
-                    });
+                    };
+                    const dismissed = dismissedAlerts[funnel];
+                    if (dismissed) {
+                        const dismissDate = new Date(dismissed.date);
+                        const daysSinceDismiss = Math.floor((new Date() - dismissDate) / (1000 * 60 * 60 * 24));
+                        if (daysSinceDismiss < DISMISS_DAYS) {
+                            alertData.daysLeft = DISMISS_DAYS - daysSinceDismiss;
+                            hiddenAlerts.push(alertData);
+                            return;
+                        }
+                    }
+                    alerts.push(alertData);
                 }
             });
 
-            return alerts.sort((a, b) => {
+            const sortFn = (a, b) => {
                 const severityOrder = { critical: 0, warning: 1, good: 2 };
                 return severityOrder[a.severity] - severityOrder[b.severity];
-            });
+            };
+
+            return { active: alerts.sort(sortFn), hidden: hiddenAlerts.sort(sortFn) };
         }
 
         function dismissAlert(funnel, severity) {
@@ -2368,6 +2494,212 @@
         }
 
         let selectedMonthIdx = -1;
+        let selectedWeekIdx = 0; // 0 = aktuelle Woche, 1 = letzte Woche, etc.
+
+        function getWeeklyBreakdown() {
+            const weeks = [];
+            const now = new Date();
+            // Montag der aktuellen Woche berechnen
+            const todayDay = (now.getDay() + 6) % 7; // 0=Mo, 6=So
+            const currentMonday = new Date(now);
+            currentMonday.setHours(0, 0, 0, 0);
+            currentMonday.setDate(currentMonday.getDate() - todayDay);
+
+            // 12 Wochen zurueck generieren
+            for (let w = 0; w < 12; w++) {
+                const weekStart = new Date(currentMonday);
+                weekStart.setDate(weekStart.getDate() - (w * 7));
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+
+                const wsStr = weekStart.toISOString().split('T')[0];
+                const weStr = weekEnd.toISOString().split('T')[0];
+
+                const weekData = {};
+                let weekTotal = 0;
+
+                (dashboardData.recentApplicants || []).forEach(app => {
+                    if (!app.date || !app.client) return;
+                    const dateStr = app.date.split(' ')[0];
+                    const parts = dateStr.split('.');
+                    if (parts.length !== 3) return;
+                    const isoDate = parts[2] + '-' + parts[1].padStart(2, '0') + '-' + parts[0].padStart(2, '0');
+                    if (isoDate >= wsStr && isoDate <= weStr) {
+                        if (!weekData[app.client]) weekData[app.client] = 0;
+                        weekData[app.client]++;
+                        weekTotal++;
+                    }
+                });
+
+                // Fuer aktuelle Woche: API Daten nutzen wenn vorhanden (genauer)
+                if (w === 0 && dashboardData.thisWeek) {
+                    const apiData = dashboardData.thisWeek;
+                    const apiTotal = Object.values(apiData).reduce((s, v) => s + (typeof v === 'number' ? v : 0), 0);
+                    if (apiTotal > 0) {
+                        weeks.push({
+                            label: w === 0 ? 'Aktuelle Woche' : 'KW ' + getISOWeek(weekStart),
+                            startDate: weekStart,
+                            endDate: weekEnd,
+                            data: apiData,
+                            total: apiTotal
+                        });
+                        continue;
+                    }
+                }
+
+                weeks.push({
+                    label: w === 0 ? 'Aktuelle Woche' : 'KW ' + getISOWeek(weekStart),
+                    startDate: weekStart,
+                    endDate: weekEnd,
+                    data: weekData,
+                    total: weekTotal
+                });
+            }
+
+            return weeks;
+        }
+
+        function getISOWeek(date) {
+            const d = new Date(date);
+            d.setHours(0, 0, 0, 0);
+            d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+            const yearStart = new Date(d.getFullYear(), 0, 4);
+            return Math.round(((d - yearStart) / 86400000 + yearStart.getDay() + 5) / 7);
+        }
+
+        function changeWeek(idx) {
+            selectedWeekIdx = parseInt(idx);
+            renderTab('week');
+        }
+
+        function renderWeekTab(container) {
+            const weeks = getWeeklyBreakdown();
+            if (selectedWeekIdx >= weeks.length) selectedWeekIdx = 0;
+            const week = weeks[selectedWeekIdx];
+            const data = week.data;
+            const total = currentClient ? getFilteredValue(data) : week.total;
+            const totalApplicants = getTotalApplicants();
+
+            const weekOptions = weeks.map((w, i) => {
+                const startStr = fmtDateShort(w.startDate);
+                const endStr = fmtDateShort(w.endDate);
+                const label = w.label + ' (' + startStr + ' bis ' + endStr + ')' + (w.total > 0 ? ' · ' + w.total + ' Bewerber' : '');
+                return '<option value="' + i + '"' + (i === selectedWeekIdx ? ' selected' : '') + '>' + label + '</option>';
+            }).join('');
+
+            const customerMap = {};
+            Object.entries(data).forEach(([funnel, count]) => {
+                if (count <= 0 || isInternalCampaign(funnel)) return;
+                const customer = dashboardData.customerMap[funnel] || funnel;
+                if (!currentClient || customer === currentClient) {
+                    if (!customerMap[customer]) customerMap[customer] = { count: 0, funnels: [] };
+                    customerMap[customer].count += count;
+                    customerMap[customer].funnels.push({ name: funnel, count: count });
+                }
+            });
+
+            let filteredCustomers = Object.entries(customerMap)
+                .map(([name, d]) => ({ name, ...d }))
+                .sort((a, b) => b.count - a.count);
+
+            if (tabSearchQuery) {
+                const q = tabSearchQuery.toLowerCase();
+                filteredCustomers = filteredCustomers.filter(c =>
+                    c.name.toLowerCase().includes(q) ||
+                    c.funnels.some(f => f.name.toLowerCase().includes(q))
+                );
+            }
+
+            const topCustomers = filteredCustomers.slice(0, 10);
+            const chartTotal = topCustomers.reduce((s, c) => s + c.count, 0);
+            const campaignsWithApplicants = Object.entries(data).filter(([k, v]) => v > 0).length;
+
+            // Vergleich mit Vorwoche
+            const prevWeek = weeks[selectedWeekIdx + 1];
+            const prevTotal = prevWeek ? prevWeek.total : 0;
+            const changePct = prevTotal > 0 ? (((total - prevTotal) / prevTotal) * 100).toFixed(0) : 0;
+
+            let html = `
+                <div style="padding: 0 0 16px 0; display: flex; gap: 12px; align-items: center;">
+                    <select onchange="changeWeek(this.value)" style="flex: 1; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-card); color: var(--text-primary); font-family: Poppins, sans-serif; font-size: 13px; cursor: pointer;">
+                        ${weekOptions}
+                    </select>
+                    <input type="text" id="tabSearch" placeholder="Kunde suchen..." value="${tabSearchQuery}" style="flex: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-card); color: var(--text-primary); font-family: Poppins, sans-serif; font-size: 13px;" oninput="filterCurrentTab(this.value)" />
+                </div>
+                <div class="kpi-grid">
+                    <div class="kpi-card" style="border: 1px solid var(--color-primary); background: linear-gradient(135deg, var(--bg-card), rgba(218, 33, 53, 0.08));">
+                        <div class="kpi-label">Bewerber insgesamt</div>
+                        <div class="kpi-value" style="color: var(--text-primary); font-size: 32px;">${totalApplicants}</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Bewerber diese Woche</div>
+                        <div class="kpi-value">${total}</div>
+                        ${changePct != 0 ? '<div class="kpi-change ' + (changePct > 0 ? 'positive' : 'negative') + '">' + (changePct > 0 ? '+' : '') + changePct + '% vs Vorwoche</div>' : ''}
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Aktive Kampagnen</div>
+                        <div class="kpi-value">${campaignsWithApplicants}</div>
+                    </div>
+                </div>
+                ${topCustomers.length > 0 ? `
+                    <div class="section-title">Nach Kunde</div>
+                    <canvas id="weekChart" style="max-height: 280px; margin-bottom: 24px;"></canvas>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-top: 16px;">
+                        ${topCustomers.map(c => `
+                            <div style="background: var(--bg-card); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border-color);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <a href="#" onclick="event.preventDefault(); navigateToCustomer('${c.name.replace(/'/g, "\\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 600; font-size: 14px;">${c.name}</a>
+                                    <span style="font-size: 20px; font-weight: 700;">${c.count}</span>
+                                </div>
+                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">${c.funnels.sort((a, b) => b.count - a.count).map(f => '<div style="display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.04);"><span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px;">' + f.name + '</span><span style="font-weight: 600; color: var(--text-secondary); white-space: nowrap;">' + f.count + '</span></div>').join('')}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : '<div style="text-align: center; padding: 40px; color: var(--text-muted);">Keine Bewerber in diesem Zeitraum</div>'}
+            `;
+
+            container.innerHTML = html;
+
+            if (topCustomers.length > 0) {
+                if (charts.weekChart) charts.weekChart.destroy();
+                const ctx = document.getElementById('weekChart').getContext('2d');
+                const colors = ['#DA2135', '#E84A5C', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#84cc16'];
+                charts.weekChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: topCustomers.map(c => c.name),
+                        datasets: [{
+                            data: topCustomers.map(c => c.count),
+                            backgroundColor: colors.slice(0, topCustomers.length),
+                            borderColor: 'var(--bg-darker)',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: '#d4d4d4', font: { family: 'Poppins', size: 12 }, padding: 15 }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.8)',
+                                padding: 12,
+                                titleFont: { family: 'Poppins', size: 14 },
+                                bodyFont: { family: 'Poppins', size: 12 },
+                                callbacks: {
+                                    label: function(context) {
+                                        const pct = chartTotal > 0 ? ((context.parsed / chartTotal) * 100).toFixed(1) : 0;
+                                        return context.label + ': ' + context.parsed + ' (' + pct + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
 
         function renderDayTab(container, dayKey) {
             const data = dashboardData[dayKey] || {};
@@ -2383,7 +2715,7 @@
                 if (!currentClient || customer === currentClient) {
                     if (!customerMap[customer]) customerMap[customer] = { count: 0, funnels: [] };
                     customerMap[customer].count += count;
-                    customerMap[customer].funnels.push(funnel);
+                    customerMap[customer].funnels.push({ name: funnel, count: count });
                 }
             });
 
@@ -2395,7 +2727,7 @@
                 const q = tabSearchQuery.toLowerCase();
                 filteredCustomers = filteredCustomers.filter(c => 
                     c.name.toLowerCase().includes(q) || 
-                    c.funnels.some(f => f.toLowerCase().includes(q))
+                    c.funnels.some(f => f.name.toLowerCase().includes(q))
                 );
             }
 
@@ -2431,7 +2763,7 @@
                                     <a href="#" onclick="event.preventDefault(); navigateToCustomer('${c.name.replace(/'/g, "\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 600; font-size: 14px;">${c.name}</a>
                                     <span style="font-size: 20px; font-weight: 700;">${c.count}</span>
                                 </div>
-                                <div style="font-size: 11px; color: var(--text-muted);">${c.funnels.map((f, i) => (i + 1) + '. ' + f).join('<br>')}</div>
+                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">${c.funnels.sort((a, b) => b.count - a.count).map(f => '<div style="display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.04);"><span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px;">' + f.name + '</span><span style="font-weight: 600; color: var(--text-secondary); white-space: nowrap;">' + f.count + '</span></div>').join('')}</div>
                             </div>
                         `).join('')}
                     </div>
@@ -2473,7 +2805,7 @@
                             x: {
                                 beginAtZero: true,
                                 grid: { color: 'rgba(255,255,255,0.05)' },
-                                ticks: { color: '#d4d4d4', font: { family: 'Poppins' } }
+                                ticks: { color: '#d4d4d4', font: { family: 'Poppins' }, stepSize: 1, precision: 0 }
                             },
                             y: {
                                 grid: { display: false },
@@ -2499,7 +2831,7 @@
                 if (!currentClient || customer === currentClient) {
                     if (!customerMap[customer]) customerMap[customer] = { count: 0, funnels: [] };
                     customerMap[customer].count += count;
-                    customerMap[customer].funnels.push(funnel);
+                    customerMap[customer].funnels.push({ name: funnel, count: count });
                 }
             });
 
@@ -2511,7 +2843,7 @@
                 const q = tabSearchQuery.toLowerCase();
                 filteredCustomers = filteredCustomers.filter(c => 
                     c.name.toLowerCase().includes(q) || 
-                    c.funnels.some(f => f.toLowerCase().includes(q))
+                    c.funnels.some(f => f.name.toLowerCase().includes(q))
                 );
             }
 
@@ -2546,7 +2878,7 @@
                                     <a href="#" onclick="event.preventDefault(); navigateToCustomer('${c.name.replace(/'/g, "\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 600; font-size: 14px;">${c.name}</a>
                                     <span style="font-size: 20px; font-weight: 700;">${c.count}</span>
                                 </div>
-                                <div style="font-size: 11px; color: var(--text-muted);">${c.funnels.map((f, i) => (i + 1) + '. ' + f).join('<br>')}</div>
+                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">${c.funnels.sort((a, b) => b.count - a.count).map(f => '<div style="display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.04);"><span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px;">' + f.name + '</span><span style="font-weight: 600; color: var(--text-secondary); white-space: nowrap;">' + f.count + '</span></div>').join('')}</div>
                             </div>
                         `).join('')}
                     </div>
@@ -2618,7 +2950,7 @@
                 if (!currentClient || customer === currentClient) {
                     if (!customerMap[customer]) customerMap[customer] = { count: 0, funnels: [] };
                     customerMap[customer].count += count;
-                    customerMap[customer].funnels.push(funnel);
+                    customerMap[customer].funnels.push({ name: funnel, count: count });
                 }
             });
 
@@ -2630,7 +2962,7 @@
                 const q = tabSearchQuery.toLowerCase();
                 filteredCustomers = filteredCustomers.filter(c => 
                     c.name.toLowerCase().includes(q) || 
-                    c.funnels.some(f => f.toLowerCase().includes(q))
+                    c.funnels.some(f => f.name.toLowerCase().includes(q))
                 );
             }
 
@@ -2676,7 +3008,7 @@
                                     <a href="#" onclick="event.preventDefault(); navigateToCustomer('${c.name.replace(/'/g, "\'")}')" style="color: var(--text-primary); text-decoration: none; font-weight: 600; font-size: 14px;">${c.name}</a>
                                     <span style="font-size: 20px; font-weight: 700;">${c.count}</span>
                                 </div>
-                                <div style="font-size: 11px; color: var(--text-muted);">${c.funnels.map((f, i) => (i + 1) + '. ' + f).join('<br>')}</div>
+                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">${c.funnels.sort((a, b) => b.count - a.count).map(f => '<div style="display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.04);"><span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px;">' + f.name + '</span><span style="font-weight: 600; color: var(--text-secondary); white-space: nowrap;">' + f.count + '</span></div>').join('')}</div>
                             </div>
                         `).join('')}
                     </div>
@@ -2716,7 +3048,7 @@
                             x: {
                                 beginAtZero: true,
                                 grid: { color: 'rgba(255,255,255,0.05)' },
-                                ticks: { color: '#d4d4d4', font: { family: 'Poppins' } }
+                                ticks: { color: '#d4d4d4', font: { family: 'Poppins' }, stepSize: 1, precision: 0 }
                             },
                             y: {
                                 grid: { display: false },
@@ -2928,7 +3260,7 @@
                             y: {
                                 beginAtZero: true,
                                 grid: { color: 'rgba(255,255,255,0.05)' },
-                                ticks: { color: '#d4d4d4', font: { family: 'Poppins' } }
+                                ticks: { color: '#d4d4d4', font: { family: 'Poppins' }, stepSize: 1, precision: 0 }
                             }
                         }
                     }
@@ -3994,7 +4326,7 @@ function renderCampaignsTab(container) {
         }
 
         function getAlertsCount() {
-            return calculateAlerts().length;
+            return calculateAlerts().active.length;
         }
 
         function formatMonthLabel(label) {
