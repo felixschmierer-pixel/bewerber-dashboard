@@ -1617,10 +1617,12 @@
                 if (Array.isArray(parsed)) {
                     dismissedAlerts = {};
                 } else {
-                    const today = new Date().toDateString();
                     dismissedAlerts = {};
+                    const now = new Date();
                     Object.entries(parsed).forEach(([funnel, info]) => {
-                        if (info.date === today) dismissedAlerts[funnel] = info;
+                        const dismissDate = new Date(info.date);
+                        const daysSinceDismiss = Math.floor((now - dismissDate) / (1000 * 60 * 60 * 24));
+                        if (daysSinceDismiss < 7) dismissedAlerts[funnel] = info;
                     });
                 }
             }
@@ -1691,7 +1693,7 @@
                 return `Gestern (${fmtDate(y)})`;
             }
             if (tabId === 'week') {
-                const start = new Date(now); start.setDate(start.getDate() - start.getDay() + 1);
+                const start = new Date(now); start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
                 const end = new Date(start); end.setDate(end.getDate() + 6);
                 return `Woche (${fmtDateShort(start)} bis ${fmtDateShort(end)})`;
             }
@@ -1907,17 +1909,44 @@
 
             const now = new Date();
             const yest = new Date(now); yest.setDate(yest.getDate() - 1);
-            const weekStart = new Date(now); weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+            const weekStart = new Date(now); weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+            const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6);
             const todayStr = fmtDateShort(now);
             const yesterdayStr = fmtDateShort(yest);
-            const weekStr = `${fmtDateShort(weekStart)} bis ${fmtDateShort(now)}`;
+            const weekStr = `${fmtDateShort(weekStart)} bis ${fmtDateShort(weekEnd)}`;
             const monthStr = MONTH_NAMES_FULL[now.getMonth()] + ' ' + now.getFullYear();
+
+            // Letzte Woche berechnen
+            const lastWeekStart = new Date(weekStart); lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+            const lastWeekEnd = new Date(weekStart); lastWeekEnd.setDate(lastWeekEnd.getDate() - 1);
+            const lastWeekStr = `${fmtDateShort(lastWeekStart)} bis ${fmtDateShort(lastWeekEnd)}`;
+
+            // Letzte Woche Bewerber zaehlen aus recentApplicants
+            let lastWeekTotal = 0;
+            const lwStartStr = lastWeekStart.toISOString().split('T')[0];
+            const lwEndStr = lastWeekEnd.toISOString().split('T')[0];
+            (dashboardData.recentApplicants || []).forEach(app => {
+                if (!app.date) return;
+                const dateStr = app.date.split(' ')[0];
+                const parts = dateStr.split('.');
+                if (parts.length === 3) {
+                    const isoDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                    if (isoDate >= lwStartStr && isoDate <= lwEndStr) {
+                        if (!currentClient || (dashboardData.customerMap[app.client] || app.client) === currentClient) {
+                            lastWeekTotal++;
+                        }
+                    }
+                }
+            });
+
+            const changeVsLastWeek = lastWeekTotal > 0 ? (((weekTotal - lastWeekTotal) / lastWeekTotal) * 100).toFixed(0) : 0;
 
             const kpiData = [
                 { label: 'Bewerber insgesamt', value: totalApplicants, change: 0, changeType: '', highlight: true },
                 { label: `Heute (${todayStr})`, value: todayTotal, change: change24h, changeType: 'vs gestern' },
                 { label: `Gestern (${yesterdayStr})`, value: yesterdayTotal, change: changeWeek, changeType: 'vs Durchschnitt' },
-                { label: `Woche (${weekStr})`, value: weekTotal, change: 0, changeType: '' },
+                { label: `Aktuelle Woche (${weekStr})`, value: weekTotal, change: changeVsLastWeek, changeType: 'vs letzte Woche' },
+                { label: `Letzte Woche (${lastWeekStr})`, value: lastWeekTotal, change: 0, changeType: '' },
                 { label: `Monat (${monthStr})`, value: monthTotal, change: 0, changeType: '' },
                 { label: 'Durchschnitt pro Tag', value: avgPerDay, change: 0, changeType: '' },
                 { label: 'Aktive Kampagnen', value: activeCampaigns, change: 0, changeType: '' },
