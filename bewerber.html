@@ -1813,17 +1813,24 @@
                     return r.text().then(txt => JSON.parse(txt));
                 })
                 .then(data => {
-                    dashboardData = fixUmlauts(data);
-                    checkEncodingHealth(dashboardData);
-                    fixCustomerNames();
-                    applyManualApplicants();
-                    updateClientFilter();
-                    const content = document.getElementById('contentArea');
-                    const scrollPos = content ? content.scrollTop : 0;
-                    renderTab(currentTab);
-                    if (content) { content.scrollTop = scrollPos; requestAnimationFrame(() => { content.scrollTop = scrollPos; }); }
-                    updateLastSync();
-                    syncDot.classList.remove('syncing');
+                    try {
+                        dashboardData = fixUmlauts(data);
+                        checkEncodingHealth(dashboardData);
+                        fixCustomerNames();
+                        applyManualApplicants();
+                        updateClientFilter();
+                        const content = document.getElementById('contentArea');
+                        const scrollPos = content ? content.scrollTop : 0;
+                        renderTab(currentTab);
+                        if (content) { content.scrollTop = scrollPos; requestAnimationFrame(() => { content.scrollTop = scrollPos; }); }
+                        updateLastSync();
+                        syncDot.classList.remove('syncing');
+                    } catch(innerErr) {
+                        console.error('Dashboard Render Error:', innerErr);
+                        console.error('Stack:', innerErr.stack);
+                        syncDot.classList.remove('syncing');
+                        document.getElementById('lastSync').textContent = 'Render Fehler (siehe Konsole)';
+                    }
                 })
                 .catch(err => {
                     console.error('API Error:', err);
@@ -1947,10 +1954,10 @@
             `;
             container.innerHTML = html;
 
-            renderOverviewKpis();
-            renderAlertPanel();
-            renderHealthTable(999);
-            renderRecentApplicants(10);
+            try { renderOverviewKpis(); } catch(e) { console.error('renderOverviewKpis Error:', e); }
+            try { renderAlertPanel(); } catch(e) { console.error('renderAlertPanel Error:', e); }
+            try { renderHealthTable(999); } catch(e) { console.error('renderHealthTable Error:', e); }
+            try { renderRecentApplicants(10); } catch(e) { console.error('renderRecentApplicants Error:', e); }
         }
 
         function getMonthData() {
