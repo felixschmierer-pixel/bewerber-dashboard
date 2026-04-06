@@ -2051,7 +2051,8 @@
             let rankingHtml = renderRankingCard(`Beste Kampagnen (${currentMonthName})`, bestCampaigns)
                 + renderRankingCard(`Beste Kampagnen (${prevMonthName})`, prevMonthCampaigns);
 
-            const activeAlerts = calculateAlerts();
+            const alertResult = calculateAlerts();
+            const activeAlerts = alertResult.active;
             const alertKpiHtml = alertsCount > 0
                 ? '<div class="kpi-card" style="border: 1px solid var(--color-danger);">' +
                     '<div class="kpi-label">Alarme</div>' +
