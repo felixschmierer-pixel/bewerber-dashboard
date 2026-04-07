@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redline Grow - Meeting Pipeline Übersicht</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Poppins', sans-serif; background: #1A1A1A; color: #fff; padding: 40px; min-height: 100vh; }
+h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+h1 span { color: #DA2135; }
+.subtitle { color: #999; font-size: 14px; margin-bottom: 40px; }
+.pipeline { display: flex; flex-direction: column; gap: 0; max-width: 1100px; margin: 0 auto; }
+.stage { display: flex; align-items: stretch; gap: 0; }
+.stage-left { width: 200px; min-width: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+.stage-icon { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; z-index: 2; border: 3px solid #333; }
+.stage-left .line { width: 3px; flex: 1; background: #333; }
+.stage-left .line.active { background: linear-gradient(180deg, #DA2135, #DA2135); }
+.stage-right { flex: 1; padding: 16px 0 16px 32px; }
+.card { background: #2D2D2D; border-radius: 10px; padding: 24px; border-left: 4px solid #DA2135; }
+.card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.card .tools { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.card .tool { background: #3a3a3a; padding: 4px 10px; border-radius: 6px; font-size: 11px; color: #ccc; }
+.card .tool.active { background: #DA2135; color: #fff; }
+.card p { font-size: 13px; color: #bbb; line-height: 1.6; }
+.card .status { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-top: 8px; }
+.card .status.live { background: rgba(34,197,94,0.15); color: #22c55e; }
+.card .status.ready { background: rgba(234,179,8,0.15); color: #eab308; }
+.arrow { font-size: 20px; color: #DA2135; text-align: center; margin: 4px 0; }
+.section-title { font-size: 20px; font-weight: 600; margin: 40px 0 20px 0; padding-left: 232px; color: #DA2135; }
+.workflow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1100px; margin: 0 auto 40px auto; padding-left: 232px; }
+.wf-card { background: #2D2D2D; border-radius: 10px; padding: 16px; }
+.wf-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.wf-card .wf-desc { font-size: 11px; color: #999; }
+.wf-card .wf-status { font-size: 11px; font-weight: 600; margin-top: 6px; }
+.wf-card .wf-status.on { color: #22c55e; }
+.wf-card .wf-status.off { color: #ef4444; }
+.legend { max-width: 1100px; margin: 40px auto 0; padding: 20px; background: #2D2D2D; border-radius: 10px; }
+.legend h3 { font-size: 14px; margin-bottom: 10px; }
+.legend-items { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.legend-item { font-size: 12px; color: #bbb; }
+.legend-item span { font-weight: 600; color: #fff; }
+.test-box { max-width: 1100px; margin: 30px auto; padding: 24px; background: #2D2D2D; border-radius: 10px; border: 2px dashed #DA2135; }
+.test-box h3 { color: #DA2135; font-size: 16px; margin-bottom: 12px; }
+.test-box ol { padding-left: 20px; }
+.test-box ol li { font-size: 13px; color: #bbb; margin-bottom: 8px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div style="max-width:1100px;margin:0 auto;">
+<h1><span>Redline Grow</span> Meeting Recording Pipeline</h1>
+<p class="subtitle">Automatische Aufnahme, Transkription und KI Analyse aller Meetings</p>
+</div>
+
+<div class="pipeline">
+
+<!-- Stage 1: Termin wird gebucht -->
+<div class="stage">
+<div class="stage-left">
+<div class="line active"></div>
+<div class="stage-icon" style="background:#1e40af;">📅</div>
+<div class="line active"></div>
+</div>
+<div class="stage-right">
+<div class="card">
+<h3>1. Termin wird gebucht</h3>
+<div class="tools">
+<span class="tool active">Calendly</span>
+<span class="tool active">Google Calendar</span>
+<span class="tool active">Microsoft Teams</span>
+</div>
+<p>Kunde bucht über Calendly einen Termin. Calendly erstellt automatisch einen Google Calendar Eintrag mit Microsoft Teams Meeting Link. Auch manuell erstellte Kalendereinträge mit Meeting Link werden erkannt.</p>
+<span class="status live">LIVE</span>
+</div>
+</div>
+</div>
+
+<!-- Stage 2: Slack Reminder -->
+<div class="stage">
+<div class="stage-left">
+<div class="line active"></div>
+<div class="stage-icon" style="background:#7c3aed;">💬</div>
+<div class="line active"></div>
+</div>
+<div class="stage-right">
+<div class="card">
+<h3>2. Slack Erinnerung (2 bis 5 Min vorher)</h3>
+<div class="tools">
+<span class="tool active">n8n Workflow</span>
+<span class="tool active">Google Calendar API</span>
+<span class="tool active">Slack DM</span>
+</div>
+<p>Alle 3 Minuten prüft der n8n Workflow deine nächsten Termine. Wenn ein Meeting in 2 bis 5 Minuten startet, bekommst du eine Slack DM mit Titel, Uhrzeit, Teilnehmer und direktem Teams Link zum Klicken.</p>
+<span class="status live">LIVE</span>
+</div>
+</div>
+</div>
+
+<!-- Stage 3: Fireflies Recording -->
+<div class="stage">
+<div class="stage-left">
+<div class="line active"></div>
+<div class="stage-icon" style="background:#dc2626;">🎙️</div>
+<div class="line active"></div>
+</div>
+<div class="stage-right">
+<div class="card">
+<h3>3. Fireflies nimmt automatisch auf</h3>
+<div class="tools">
+<span class="tool active">Fireflies.ai</span>
+<span class="tool active">Microsoft Teams</span>
+</div>
+<p>Fireflies erkennt den Termin über deinen Google Calendar und tritt automatisch als stiller Teilnehmer dem Teams Meeting bei. Der Kunde sieht nur "Fireflies.ai Notetaker" in der Teilnehmerliste. Keine Chat Nachrichten, keine Emails, keine Voice Trigger. Du fragst mündlich kurz nach Einverständnis.</p>
+<span class="status live">LIVE</span>
+</div>
+</div>
+</div>
+
+<!-- Stage 4: Transkription -->
+<div class="stage">
+<div class="stage-left">
+<div class="line active"></div>
+<div class="stage-icon" style="background:#059669;">📝</div>
+<div class="line active"></div>
+</div>
+<div class="stage-right">
+<div class="card">
+<h3>4. Transkription auf Deutsch</h3>
+<div class="tools">
+<span class="tool active">Fireflies.ai</span>
+<span class="tool">Sprache: Deutsch</span>
+</div>
+<p>Nach dem Meeting verarbeitet Fireflies die Aufnahme und erstellt ein vollständiges deutsches Transkript mit Sprechererkennung (wer hat was gesagt). Fireflies erstellt auch eine eigene Zusammenfassung und Action Items.</p>
+<span class="status live">LIVE</span>
+</div>
+</div>
+</div>
+
+<!-- Stage 5: n8n holt Transkript -->
+<div class="stage">
+<div class="stage-left">
+<div class="line active"></div>
+<div class="stage-icon" style="background:#d97706;">🔄</div>
+<div class="line active"></div>
+</div>
+<div class="stage-right">
+<div class="card">
+<h3>5. n8n holt Transkript ab (alle 2 Stunden)</h3>
+<div class="tools">
+<span class="tool active">n8n Workflow</span>
+<span class="tool active">Fireflies GraphQL API</span>
+</div>
+<p>Der Fireflies Transcript Puller Workflow fragt alle 2 Stunden die Fireflies API nach neuen Transkripten. Neue Transkripte werden automatisch weitergeleitet zur GPT Analyse. Zusätzlich gibt es einen Webhook Workflow für sofortige Verarbeitung.</p>
+<span class="status live">LIVE</span>
+</div>
+</div>
+</div>
+
+<!-- Stage 6: GPT Analyse -->
+<div class="stage">
+<div class="stage-left">
+<div class="line active"></div>
+<div class="stage-icon" style="background:#8b5cf6;">🤖</div>
+<div class="line active"></div>
+</div>
+<div class="stage-right">
+<div class="card">
+<h3>6. GPT analysiert das Transkript</h3>
+<div class="tools">
+<span class="tool active">OpenAI GPT-4o-mini</span>
+<span class="tool active">n8n Code Node</span>
+</div>
+<p>GPT liest das komplette Transkript und extrahiert: Zusammenfassung (2 bis 3 Sätze), Stimmung (positiv/neutral/negativ), Action Items, Kundenthemen, Risiken und nächste Schritte. Alles auf Deutsch, optimiert für Social Recruiting Kontext.</p>
+<span class="status live">LIVE</span>
+</div>
+</div>
+</div>
+
+<!-- Stage 7: Data Tables -->
+<div class="stage">
+<div class="stage-left">
+<div class="line active"></div>
+<div class="stage-icon" style="background:#0891b2;">💾</div>
+<div class="line active"></div>
+</div>
+<div class="stage-right">
+<div class="card">
+<h3>7. Daten werden gespeichert</h3>
+<div class="tools">
+<span class="tool active">n8n Data Table: Meetings</span>
+<span class="tool active">n8n Data Table: Kundenintelligenz</span>
+</div>
+<p>Die Analyse wird in zwei Data Tables geschrieben. Die Meetings Tabelle bekommt Zusammenfassung, Stimmung und Action Items. Die Kundenintelligenz Tabelle bekommt pro Kunde die aktuellsten Erkenntnisse, Risiken und nächste Schritte.</p>
+<span class="status live">LIVE</span>
+</div>
+</div>
+</div>
+
+<!-- Stage 8: Output -->
+<div class="stage">
+<div class="stage-left">
+<div class="line active"></div>
+<div class="stage-icon" style="background:#DA2135;">🚀</div>
+<div class="line" style="background:transparent;"></div>
+</div>
+<div class="stage-right">
+<div class="card">
+<h3>8. Slack Nachricht + Dashboard</h3>
+<div class="tools">
+<span class="tool active">Slack #redline-c-level</span>
+<span class="tool active">meetings.html</span>
+<span class="tool active">intelligence.html</span>
+</div>
+<p>Du bekommst eine Slack Nachricht in #redline-c-level mit der kompletten Analyse: Zusammenfassung, Stimmung, Action Items, nächste Schritte. Gleichzeitig erscheinen die Daten im Dashboard unter Meetings und Kundenintelligenz.</p>
+<span class="status live">LIVE</span>
+</div>
+</div>
+</div>
+
+</div>
+
+<!-- Workflow Overview -->
+<div class="section-title">Alle n8n Workflows (11 aktiv)</div>
+<div class="workflow-grid">
+<div class="wf-card">
+<h4>Meeting Reminder: Slack Benachrichtigung</h4>
+<div class="wf-desc">Alle 3 Min prüfen, Slack DM 2 bis 5 Min vor Terminen</div>
+<div class="wf-status on">● AKTIV</div>
+</div>
+<div class="wf-card">
+<h4>Fireflies Transcript Puller (Polling)</h4>
+<div class="wf-desc">Alle 2h neue Transkripte von Fireflies API abholen</div>
+<div class="wf-status on">● AKTIV</div>
+</div>
+<div class="wf-card">
+<h4>Fireflies Transcript Processor (Webhook)</h4>
+<div class="wf-desc">Sofortige Verarbeitung bei Fireflies Webhook Event</div>
+<div class="wf-status on">● AKTIV</div>
+</div>
+<div class="wf-card">
+<h4>KI Meeting Analyse Pipeline</h4>
+<div class="wf-desc">GPT-4o-mini Analyse, Data Table Upsert</div>
+<div class="wf-status on">● AKTIV</div>
+</div>
+<div class="wf-card">
+<h4>Meeting Sync: Google Calendar</h4>
+<div class="wf-desc">Alle 3h Kalender mit Data Table synchronisieren</div>
+<div class="wf-status on">● AKTIV</div>
+</div>
+<div class="wf-card">
+<h4>Calendly Täglicher Sync</h4>
+<div class="wf-desc">Täglich 6:30 Uhr alle Calendly Termine abholen</div>
+<div class="wf-status on">● AKTIV</div>
+</div>
+<div class="wf-card">
+<h4>Calendly Neue Buchung Webhook</h4>
+<div class="wf-desc">Sofort bei neuer Calendly Buchung</div>
+<div class="wf-status on">● AKTIV</div>
+</div>
+<div class="wf-card">
+<h4>Meeting API: Dashboard Endpunkt</h4>
+<div class="wf-desc">GET /meetings-api für das Dashboard</div>
+<div class="wf-status on">● AKTIV</div>
+</div>
+<div class="wf-card">
+<h4>Task API: Dashboard Endpunkt</h4>
+<div class="wf-desc">GET /tasks-api für das Dashboard</div>
+<div class="wf-status on">● AKTIV</div>
+</div>
+<div class="wf-card">
+<h4>Intelligence API: Dashboard Endpunkt</h4>
+<div class="wf-desc">GET /intelligence-api für das Dashboard</div>
+<div class="wf-status on">● AKTIV</div>
+</div>
+<div class="wf-card">
+<h4>Abend Check In</h4>
+<div class="wf-desc">Täglich 18:00 Email Zusammenfassung des Tages</div>
+<div class="wf-status on">● AKTIV</div>
+</div>
+</div>
+
+<!-- Test Instructions -->
+<div class="test-box">
+<h3>So testest du die Pipeline jetzt</h3>
+<ol>
+<li><strong>Schnelltest:</strong> Buche über Calendly einen Testtermin mit einem Mitarbeiter (z.B. Justin oder Alexander) für in 10 Minuten. Microsoft Teams Link wird automatisch erstellt.</li>
+<li><strong>Slack Reminder prüfen:</strong> 2 bis 5 Minuten vor dem Termin sollte eine Slack DM bei dir ankommen mit Titel, Uhrzeit und Teams Link.</li>
+<li><strong>Fireflies prüfen:</strong> Wenn du dem Teams Meeting beitrittst, sollte nach ca. 30 Sekunden "Fireflies.ai Notetaker" als Teilnehmer erscheinen.</li>
+<li><strong>Transkript prüfen:</strong> Nach dem Meeting (ca. 5 bis 15 Min Verarbeitungszeit) erscheint das Transkript in deinem Fireflies Dashboard unter app.fireflies.ai.</li>
+<li><strong>Analyse prüfen:</strong> Spätestens beim nächsten 2h Polling Zyklus (oder sofort per Webhook) wird GPT das Transkript analysieren und du bekommst die Slack Nachricht mit Zusammenfassung.</li>
+</ol>
+</div>
+
+<div class="legend">
+<h3>Verbundene Tools und Credentials</h3>
+<div class="legend-items">
+<div class="legend-item"><span>Google Calendar:</span> felix.schmierer@redline-grow.de</div>
+<div class="legend-item"><span>Slack:</span> redlinegrowda / #redline-c-level</div>
+<div class="legend-item"><span>Fireflies.ai:</span> felix.schmierer@redline-grow.de</div>
+<div class="legend-item"><span>OpenAI:</span> GPT-4o-mini (HTTP Header Auth)</div>
+<div class="legend-item"><span>Calendly:</span> Redline Grow Account</div>
+<div class="legend-item"><span>n8n:</span> redline-grow.app.n8n.cloud</div>
+</div>
+</div>
+
+</body>
+</html>
